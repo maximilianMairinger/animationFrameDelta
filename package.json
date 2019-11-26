@@ -2,8 +2,8 @@
   "name": "extended-dom",
   "version": "2.0.7",
   "description": "Dom utility",
-  "main": "app/dist/edom.js",
-  "types": "app/dist/edom.d.ts",
+  "main": "app/dist/reqaf.js",
+  "types": "app/dist/reqaf.d.ts",
   "scripts": {
     "build": "tsc -p ./tsconfig.prod.json",
     "dev": "webpack --config webpack.dev.config.js"
