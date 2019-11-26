@@ -8,6 +8,7 @@
     "declaration": true
   },
   "exclude": [
-    "./test"
+    "./test",
+    "./app/dist"
   ]
 }

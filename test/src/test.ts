@@ -14,3 +14,9 @@ setTimeout(() => {
     reqaf.unsubscribe(f)
   }, 1000)
 }, 1000)
+
+//reqaf.ignoreUnsubscriptionError()
+
+declare let global: any
+
+global.w = reqaf.stats
