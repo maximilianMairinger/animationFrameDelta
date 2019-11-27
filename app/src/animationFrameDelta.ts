@@ -1,9 +1,10 @@
 let length = 0
 let ls: Subscription[] = []
-export default function(func: Subscription) {
+export function subscribe(func: Subscription) {
   ls.push(func)
   length++
 }
+export default subscribe
 
 type Subscription = (delta: number, timestamp: number, absoluteDelta: number) => void
 
