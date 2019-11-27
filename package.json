@@ -1,20 +1,25 @@
 {
-  "name": "extended-dom",
-  "version": "2.0.7",
-  "description": "Dom utility",
-  "main": "app/dist/reqaf.js",
-  "types": "app/dist/reqaf.d.ts",
+  "name": "animation-frame-delta",
+  "version": "1.0.0",
+  "description": "Performant animation loop with central delta calculation.",
+  "main": "app/dist/animationFrameDelta.js",
+  "types": "app/dist/animationFrameDelta.d.ts",
   "scripts": {
     "build": "tsc -p ./tsconfig.prod.json",
     "dev": "webpack --config webpack.dev.config.js"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/maximilianMairinger/edom.git"
+    "url": "git+https://github.com/maximilianMairinger/animation-frame-delta.git"
   },
   "keywords": [
-    "dom",
-    "utility"
+    "animation",
+    "tick",
+    "frame",
+    "unsubscribe",
+    "tiny",
+    "requestAnimationFrame",
+    "delta"
   ],
   "author": "Maximilian Mairinger",
   "license": "ISC",
@@ -37,22 +42,5 @@
     "webpack-cli": "^3.3.10",
     "webpack-inject-plugin": "^1.5.2",
     "webpack-merge": "^4.2.2"
-  },
-  "dependencies": {
-    "@smoovy/tween": "^0.2.3",
-    "@tweenjs/tween.js": "^18.4.2",
-    "abs-svg-path": "^0.1.1",
-    "animejs": "^3.1.0",
-    "bezier-easing": "^2.1.0",
-    "dash-camelcase": "^1.0.1",
-    "decompose-dommatrix": "^1.1.0",
-    "delay": "^4.3.0",
-    "front-db": "^1.1.3",
-    "normalize-svg-path": "^1.0.1",
-    "parse-svg-path": "^0.1.2",
-    "resize-observer-polyfill": "^1.5.1",
-    "str_shorten": "^1.0.18",
-    "web-animations-js": "^2.3.2",
-    "xrray": "^4.0.4"
   }
 }

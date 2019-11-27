@@ -1,4 +1,4 @@
-import * as reqaf from "./../../app/src/reqaf"
+import * as reqaf from "../../app/src/animationFrameDelta"
 
 
 let f = () => {
