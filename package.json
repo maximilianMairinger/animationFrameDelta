@@ -1,12 +1,13 @@
 {
   "name": "animation-frame-delta",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Performant animation loop with central delta calculation.",
   "main": "app/dist/animationFrameDelta.js",
   "types": "app/dist/animationFrameDelta.d.ts",
   "scripts": {
     "build": "tsc -p ./tsconfig.prod.json",
-    "dev": "webpack --config webpack.dev.config.js"
+    "dev": "webpack --config webpack.dev.config.js",
+    "publish": "npm run build && npm publish"
   },
   "repository": {
     "type": "git",
