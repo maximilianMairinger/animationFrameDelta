@@ -1,8 +1,16 @@
 let length = 0
 let ls: Subscription[] = []
-export function subscribe(func: Subscription) {
+export function subscribe(func: Subscription, forHowLong?: number) {
   ls.push(func)
   length++
+  
+  if (forHowLong) setTimeout(() => {
+    try {
+      unsubscribe(func)
+    }
+    catch(e) {}
+  }, forHowLong)
+
   return func
 }
 export default subscribe
