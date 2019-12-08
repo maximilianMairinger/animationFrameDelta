@@ -3,6 +3,7 @@ let ls: Subscription[] = []
 export function subscribe(func: Subscription) {
   ls.push(func)
   length++
+  return func
 }
 export default subscribe
 
