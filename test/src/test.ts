@@ -1,22 +1,15 @@
-import * as reqaf from "../../app/src/animationFrameDelta"
+import * as animationFrameDelta from "../../app/src/animationFrameDelta"
 
 
-let f = () => {
-  console.log(reqaf.stats);
+let f = (...e) => {
+  console.log(e);
   
 }
-reqaf.default(f)
+animationFrameDelta.default(f, 1000)
 
-setTimeout(() => {
-  reqaf.unsubscribe(f)
-
-  setTimeout(() => {
-    reqaf.unsubscribe(f)
-  }, 1000)
-}, 1000)
 
 //reqaf.ignoreUnsubscriptionError()
 
 declare let global: any
 
-global.w = reqaf.stats
+global.w = animationFrameDelta.stats
