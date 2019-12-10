@@ -1,3 +1,5 @@
+import clone from "clone"
+
 let length = 0
 let ls: Subscription[] = []
 export function subscribe(func: Subscription, forHowLong?: number) {
@@ -66,7 +68,7 @@ const loop = () => {
   stats.absoluteDelta = timestamp - lastTimestamp
   lastTimestamp = stats.timestamp = timestamp
   stats.delta = stats.absoluteDelta * ivertOfAbsoluteDeltaAt60FPS
-  currentLs = JSON.parse(JSON.stringify(ls))
+  currentLs = clone(ls)
 
   for (index = 0; index < length; index++) {
     currentLs[index](stats.delta, stats.timestamp, stats.absoluteDelta)

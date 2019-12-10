@@ -28,6 +28,7 @@
   },
   "homepage": "https://github.com/maximilianMairinger/edom#readme",
   "devDependencies": {
+    "@types/clone": "^0.1.30",
     "@types/node": "^12.12.16",
     "@types/tween.js": "^17.2.0",
     "css-loader": "^2.1.0",
@@ -42,5 +43,8 @@
     "webpack-cli": "^3.3.10",
     "webpack-inject-plugin": "^1.5.2",
     "webpack-merge": "^4.2.2"
+  },
+  "dependencies": {
+    "clone": "^2.1.2"
   }
 }
