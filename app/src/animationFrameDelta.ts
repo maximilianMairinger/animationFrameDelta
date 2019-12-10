@@ -57,22 +57,21 @@ export const stats: {
 
 
 let index: number       // to prevent GC
+let lastTimestamp: number = performance.now()
+let timestamp: number
+let currentLs: Subscription[]
 
-const loop = (timestamp: number) => {
+const loop = () => {
+  timestamp = performance.now()
   stats.absoluteDelta = timestamp - lastTimestamp
   lastTimestamp = stats.timestamp = timestamp
   stats.delta = stats.absoluteDelta * ivertOfAbsoluteDeltaAt60FPS
+  currentLs = JSON.parse(JSON.stringify(ls))
 
   for (index = 0; index < length; index++) {
-    ls[index](stats.delta, stats.timestamp, stats.absoluteDelta)
+    currentLs[index](stats.delta, stats.timestamp, stats.absoluteDelta)
   }
 
   requestAnimationFrame(loop)
 }
-
-let lastTimestamp: number
-requestAnimationFrame((timestamp) => {
-  lastTimestamp = timestamp
-
-  requestAnimationFrame(loop)
-})
+requestAnimationFrame(loop)
