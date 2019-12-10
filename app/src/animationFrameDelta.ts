@@ -4,16 +4,18 @@ export function subscribe(func: Subscription, forHowLong?: number) {
   ls.push(func)
   length++
   
-  if (forHowLong) setTimeout(() => {    
-    try {
-      unsubscribe(func)
-    }
-    catch(e) {}
-    let timestamp = performance.now()
-    let absoluteDelta = timestamp - lastTimestamp
-    
-    func(absoluteDelta * ivertOfAbsoluteDeltaAt60FPS, timestamp, absoluteDelta)
-  }, forHowLong)
+  requestAnimationFrame(() => {
+    if (forHowLong) setTimeout(() => {    
+      try {
+        unsubscribe(func)
+      }
+      catch(e) {}
+      let timestamp = performance.now()
+      let absoluteDelta = timestamp - lastTimestamp
+      
+      func(absoluteDelta * ivertOfAbsoluteDeltaAt60FPS, timestamp, absoluteDelta)
+    }, forHowLong)
+  })
 
   return func
 }
