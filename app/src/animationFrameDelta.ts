@@ -2,19 +2,19 @@ import clone from "clone"
 const now = performance.now.bind(performance)
 
 type Subscription = (delta: number, timestamp: number, absoluteDelta: number) => void
-type EndingSubscription = (runningFor: number, delta: number, timestamp: number, absoluteDelta: number) => void
+type ElapsingSubscription = (runningFor: number, delta: number, timestamp: number, absoluteDelta: number) => void
 
 const subscriptions: Subscription[] = []
-const endingSubscriptions: {begin: number, func: EndingSubscription}[] = []
-const initalEndingSubscriptions: EndingSubscription[] = []
+const elapsingSubscriptions: {begin: number, func: ElapsingSubscription}[] = []
+const initalElapsingSubscriptions: ElapsingSubscription[] = []
 
 
 export function subscribe(func: Subscription)
-export function subscribe(func: EndingSubscription, forHowLong: number)
-export function subscribe(func: Subscription | EndingSubscription, forHowLong?: number) {
+export function subscribe(func: ElapsingSubscription, elapseIn: number)
+export function subscribe(func: Subscription | ElapsingSubscription, elapseIn?: number) {
   
-  if (forHowLong) {
-    initalEndingSubscriptions.push(func)
+  if (elapseIn) {
+    initalElapsingSubscriptions.push(func)
 
     requestAnimationFrame(() => {
       setTimeout(() => {    
@@ -25,8 +25,8 @@ export function subscribe(func: Subscription | EndingSubscription, forHowLong?: 
        let timestamp = now()
        let absoluteDelta = timestamp - lastTimestamp
        
-       func(forHowLong, absoluteDelta * ivertOfAbsoluteDeltaAt60FPS, timestamp, absoluteDelta)
-     }, forHowLong)
+       func(elapseIn, absoluteDelta * ivertOfAbsoluteDeltaAt60FPS, timestamp, absoluteDelta)
+     }, elapseIn)
    })
   }
   //@ts-ignore
@@ -45,22 +45,22 @@ export function ignoreUnsubscriptionError(to: boolean = true) {
   ignore = to
 }
 
-export function unsubscribe(func: Subscription | EndingSubscription) {
+export function unsubscribe(func: Subscription | ElapsingSubscription) {
   let at = -1
-  for (let i = 0; i < endingSubscriptions.length; i++) {
-    if (endingSubscriptions[i].func === func) {
+  for (let i = 0; i < elapsingSubscriptions.length; i++) {
+    if (elapsingSubscriptions[i].func === func) {
       at = i
       break
     }
   }
 
-  if (at !== -1) endingSubscriptions.splice(at, 1)
+  if (at !== -1) elapsingSubscriptions.splice(at, 1)
   else {
     //@ts-ignore
     at = subscriptions.indexOf(func)
     if (at !== -1) subscriptions.splice(at, 1)
     else {
-      at = initalEndingSubscriptions.indexOf(func)
+      at = initalElapsingSubscriptions.indexOf(func)
       if (at !== -1) subscriptions.splice(at, 1)
       else if (!ignore) throw new Error("Invalid request to unsubscribe. Given function is not subscribed.\n\nTo ignore this error globally please call \"reqaf.ignoreUnsubscriptionError()\".\n")
     }
@@ -90,7 +90,7 @@ let index: number       // to prevent GC
 let lastTimestamp: number = now()
 let timestamp: number
 let currentSubscriptions: Subscription[]
-let currentEndingSubscriptions: {begin: number, func: EndingSubscription}[]
+let currentElapsingSubscriptions: {begin: number, func: ElapsingSubscription}[]
 let currentAnything: any
 let currentTimestamp: number
 
@@ -103,21 +103,21 @@ const loop = () => {
 
 
 
-  for (; 0 !== initalEndingSubscriptions.length;) {
-    endingSubscriptions.push({begin: currentTimestamp, func: initalEndingSubscriptions[0]})
-    initalEndingSubscriptions.splice(0, 1)
+  for (; 0 !== initalElapsingSubscriptions.length;) {
+    elapsingSubscriptions.push({begin: currentTimestamp, func: initalElapsingSubscriptions[0]})
+    initalElapsingSubscriptions.splice(0, 1)
   }
 
   //clone to ensure that no subscriptions are added during (inside) one
   currentSubscriptions = [...subscriptions]
-  currentEndingSubscriptions = [...endingSubscriptions]
+  currentElapsingSubscriptions = [...elapsingSubscriptions]
 
   for (index = 0; index < currentSubscriptions.length; index++) {
     currentSubscriptions[index](stats.delta, stats.timestamp, stats.absoluteDelta)
   }
 
-  for (index = 0; index < currentEndingSubscriptions.length; index++) {
-    currentAnything = currentEndingSubscriptions[index]
+  for (index = 0; index < currentElapsingSubscriptions.length; index++) {
+    currentAnything = currentElapsingSubscriptions[index]
     currentAnything.func(currentTimestamp - currentAnything.begin, stats.delta, stats.timestamp, stats.absoluteDelta)
   }
 
