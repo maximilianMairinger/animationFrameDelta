@@ -8,8 +8,6 @@ animationFrameDelta.default((...e) => {
 }, 1000)
 
 
-//reqaf.ignoreUnsubscriptionError()
-
 declare let global: any
 
 global.w = animationFrameDelta.stats
