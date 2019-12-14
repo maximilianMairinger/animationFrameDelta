@@ -1,4 +1,3 @@
-import clone from "clone"
 const now = performance.now.bind(performance)
 
 type Subscription = (delta: number, timestamp: number, absoluteDelta: number) => void

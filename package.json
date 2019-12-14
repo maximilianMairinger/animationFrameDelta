@@ -44,8 +44,5 @@
     "webpack-cli": "^3.3.10",
     "webpack-inject-plugin": "^1.5.2",
     "webpack-merge": "^4.2.2"
-  },
-  "dependencies": {
-    "clone": "^2.1.2"
   }
 }
