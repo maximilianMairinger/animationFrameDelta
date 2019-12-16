@@ -31,4 +31,7 @@ The unsubscribe simply call
 unsubscribe(subscription)
 ```
 
+## Conribute
+
+All feedback is appreciated. Create an push request or wirte an issue.
 
