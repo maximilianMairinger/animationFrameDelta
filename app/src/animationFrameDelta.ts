@@ -20,7 +20,7 @@ export function subscribe(func: Subscription | ElapsingSubscription, elapseIn?: 
         let index = findIndexOfElapsingSubscriptionsFunc(func)
         if (index === -1) return
         
-        let begin = elapsingSubscriptions[index].begin
+        let { begin } = elapsingSubscriptions[index]
         elapsingSubscriptions.splice(index, 1)
 
         if (stats.timestamp !== begin) {
