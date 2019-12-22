@@ -9,22 +9,24 @@ const initalElapsingSubscriptions: ElapsingSubscription[] = []
 
 
 export function subscribe(func: Subscription)
-export function subscribe(func: ElapsingSubscription, elapseIn: number)
-export function subscribe(func: Subscription | ElapsingSubscription, elapseIn?: number) {
+export function subscribe(func: ElapsingSubscription, elapseIn: number, iterations?: number)
+export function subscribe(func: Subscription | ElapsingSubscription, elapseIn?: number, iterations: number = 1) {
   
   if (elapseIn) {
     initalElapsingSubscriptions.push(func)
 
     requestAnimationFrame(() => {
       setTimeout(() => {    
-       try {
-         unsubscribe(func)
-       }
-       catch(e) {}
-       let timestamp = now()
-       let absoluteDelta = timestamp - lastTimestamp
-       
-       func(elapseIn, absoluteDelta * ivertOfAbsoluteDeltaAt60FPS, timestamp, absoluteDelta)
+        let timestamp = now()
+        let absoluteDelta = timestamp - lastTimestamp
+        func(elapseIn, absoluteDelta * ivertOfAbsoluteDeltaAt60FPS, timestamp, absoluteDelta)
+
+        try {
+          unsubscribe(func)
+        }
+        catch(e) {}
+
+        if (iterations !== 0) subscribe(func, elapseIn, iterations-1)
      }, elapseIn)
    })
   }
