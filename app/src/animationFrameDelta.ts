@@ -1,5 +1,4 @@
 const now = performance.now.bind(performance)
-const minimalTimestampDifference = .0000000001
 
 type Subscription = (delta: number, timestamp: number, absoluteDelta: number) => void
 type ElapsingSubscription = (runningFor: number, delta: number, timestamp: number, absoluteDelta: number) => void
@@ -18,14 +17,17 @@ export function subscribe(func: Subscription | ElapsingSubscription, elapseIn?: 
 
     requestAnimationFrame(() => {
       setTimeout(() => {    
-        try {
-          unsubscribe(func)
-        }
-        catch(e) {}
+        let index = findIndexOfElapsingSubscriptionsFunc(func)
+        if (index === -1) return
+        
+        let begin = elapsingSubscriptions[index].begin
+        elapsingSubscriptions.splice(index, 1)
 
-        let timestamp = now()
-        let absoluteDelta = timestamp - lastTimestamp
-        if (Math.abs(stats.timestamp - timestamp) > minimalTimestampDifference) func(elapseIn, absoluteDelta * ivertOfAbsoluteDeltaAt60FPS, timestamp, absoluteDelta)
+        if (stats.timestamp !== begin) {
+          let timestamp = begin + elapseIn
+          let absoluteDelta = timestamp - lastTimestamp
+          func(elapseIn, absoluteDelta * ivertOfAbsoluteDeltaAt60FPS, timestamp, absoluteDelta)
+        }
 
         if (iterations > 1) subscribe(func, elapseIn, iterations-1)
      }, elapseIn)
@@ -47,7 +49,7 @@ export function ignoreUnsubscriptionError(to: boolean = true) {
   ignore = to
 }
 
-export function unsubscribe(func: Subscription | ElapsingSubscription) {
+function findIndexOfElapsingSubscriptionsFunc(func: ElapsingSubscription) {
   let at = -1
   for (let i = 0; i < elapsingSubscriptions.length; i++) {
     if (elapsingSubscriptions[i].func === func) {
@@ -55,7 +57,11 @@ export function unsubscribe(func: Subscription | ElapsingSubscription) {
       break
     }
   }
+  return at
+}
 
+export function unsubscribe(func: Subscription | ElapsingSubscription) {
+  let at = findIndexOfElapsingSubscriptionsFunc(func)
   if (at !== -1) elapsingSubscriptions.splice(at, 1)
   else {
     //@ts-ignore
