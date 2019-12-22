@@ -15,7 +15,7 @@ export function subscribe(func: Subscription | ElapsingSubscription, elapseIn?: 
   if (elapseIn) {
     initalElapsingSubscriptions.push(func)
 
-    setTimeout(() => {    
+    setTimeout(() => {  
       let index = findIndexOfElapsingSubscriptionsFunc(func)
       if (index === -1) return
       
@@ -29,10 +29,9 @@ export function subscribe(func: Subscription | ElapsingSubscription, elapseIn?: 
       }
 
       if (iterations > 1) subscribe(func, elapseIn, iterations-1)
-    }, elapseIn)
+    }, elapseIn - 1) // setTimout is only 1ms accurate. In an edge case it is better to drop one frame instead of execute one to many
   }
-  //@ts-ignore
-  else subscriptions.push(func)
+  else subscriptions.push(func as Subscription)
   
   
 
@@ -62,8 +61,7 @@ export function unsubscribe(func: Subscription | ElapsingSubscription) {
   let at = findIndexOfElapsingSubscriptionsFunc(func)
   if (at !== -1) elapsingSubscriptions.splice(at, 1)
   else {
-    //@ts-ignore
-    at = subscriptions.indexOf(func)
+    at = subscriptions.indexOf(func as Subscription)
     if (at !== -1) subscriptions.splice(at, 1)
     else {
       at = initalElapsingSubscriptions.indexOf(func)
