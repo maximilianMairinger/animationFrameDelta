@@ -15,23 +15,21 @@ export function subscribe(func: Subscription | ElapsingSubscription, elapseIn?: 
   if (elapseIn) {
     initalElapsingSubscriptions.push(func)
 
-    requestAnimationFrame(() => {
-      setTimeout(() => {    
-        let index = findIndexOfElapsingSubscriptionsFunc(func)
-        if (index === -1) return
-        
-        let { begin } = elapsingSubscriptions[index]
-        elapsingSubscriptions.splice(index, 1)
+    setTimeout(() => {    
+      let index = findIndexOfElapsingSubscriptionsFunc(func)
+      if (index === -1) return
+      
+      let { begin } = elapsingSubscriptions[index]
+      elapsingSubscriptions.splice(index, 1)
 
-        if (stats.timestamp !== begin) {
-          let timestamp = begin + elapseIn
-          let absoluteDelta = timestamp - lastTimestamp
-          func(elapseIn, absoluteDelta * ivertOfAbsoluteDeltaAt60FPS, timestamp, absoluteDelta)
-        }
+      if (stats.timestamp !== begin) {
+        let timestamp = begin + elapseIn
+        let absoluteDelta = timestamp - lastTimestamp
+        func(elapseIn, absoluteDelta * ivertOfAbsoluteDeltaAt60FPS, timestamp, absoluteDelta)
+      }
 
-        if (iterations > 1) subscribe(func, elapseIn, iterations-1)
-     }, elapseIn)
-   })
+      if (iterations > 1) subscribe(func, elapseIn, iterations-1)
+    }, elapseIn)
   }
   //@ts-ignore
   else subscriptions.push(func)
