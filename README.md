@@ -33,6 +33,8 @@ To unsubscribe simply call
 unsubscribe(subscription)
 ```
 
+TODO: iterations
+
 ## Conribute
 
 All feedback is appreciated. Create an pull request or write an issue.
