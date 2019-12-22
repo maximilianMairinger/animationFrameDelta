@@ -24,12 +24,10 @@ function sub(func: Subscription | ElapsingSubscription, elapseIn?: number, itera
       let { begin } = elapsingSubscriptions[index]
       elapsingSubscriptions.splice(index, 1)
 
-      if (stats.timestamp !== begin) {
-        let elapsed = inIteration * elapseIn
-        let timestamp = begin + elapsed
-        let absoluteDelta = timestamp - lastTimestamp
-        func(elapsed, absoluteDelta * ivertOfAbsoluteDeltaAt60FPS, timestamp, absoluteDelta)
-      }
+      let elapsed = inIteration * elapseIn
+      let timestamp = begin + elapsed
+      let absoluteDelta = timestamp - lastTimestamp
+      func(elapsed, absoluteDelta * ivertOfAbsoluteDeltaAt60FPS, timestamp, absoluteDelta)
 
       if (iterations > 1) sub(func, elapseIn, iterations-1, iterateTimestamp as true, inIteration+1, begin)
     }, elapseIn - 1) // setTimout is only 1ms accurate. In an edge case it is better to drop one frame instead of execute one to many
