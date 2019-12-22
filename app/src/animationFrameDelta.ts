@@ -8,12 +8,14 @@ const elapsingSubscriptions: {begin: number, func: ElapsingSubscription}[] = []
 const initalElapsingSubscriptions: ElapsingSubscription[] = []
 
 
-export function subscribe(func: Subscription)
-export function subscribe(func: ElapsingSubscription, elapseIn: number, iterations?: number)
-export function subscribe(func: Subscription | ElapsingSubscription, elapseIn?: number, iterations: number = 1) {
-  
+
+function sub(func: Subscription): typeof func
+function sub(func: ElapsingSubscription, elapseIn: number, iterations: number, iterateTimestamp: false): typeof func
+function sub(func: ElapsingSubscription, elapseIn: number, iterations: number, iterateTimestamp: true, inIteration: number, begin?: number): typeof func
+function sub(func: Subscription | ElapsingSubscription, elapseIn?: number, iterations?: number, iterateTimestamp?: boolean, inIteration?: number, begin?: number): typeof func {
   if (elapseIn) {
-    initalElapsingSubscriptions.push(func)
+    if (iterateTimestamp || begin === undefined) initalElapsingSubscriptions.push(func)
+    else elapsingSubscriptions.push({begin, func})
 
     setTimeout(() => {  
       let index = findIndexOfElapsingSubscriptionsFunc(func)
@@ -23,12 +25,13 @@ export function subscribe(func: Subscription | ElapsingSubscription, elapseIn?: 
       elapsingSubscriptions.splice(index, 1)
 
       if (stats.timestamp !== begin) {
-        let timestamp = begin + elapseIn
+        let elapsed = inIteration * elapseIn
+        let timestamp = begin + elapsed
         let absoluteDelta = timestamp - lastTimestamp
-        func(elapseIn, absoluteDelta * ivertOfAbsoluteDeltaAt60FPS, timestamp, absoluteDelta)
+        func(elapsed, absoluteDelta * ivertOfAbsoluteDeltaAt60FPS, timestamp, absoluteDelta)
       }
 
-      if (iterations > 1) subscribe(func, elapseIn, iterations-1)
+      if (iterations > 1) sub(func, elapseIn, iterations-1, iterateTimestamp as true, inIteration+1, begin)
     }, elapseIn - 1) // setTimout is only 1ms accurate. In an edge case it is better to drop one frame instead of execute one to many
   }
   else subscriptions.push(func as Subscription)
@@ -36,6 +39,13 @@ export function subscribe(func: Subscription | ElapsingSubscription, elapseIn?: 
   
 
   return func
+}
+
+
+export function subscribe(func: Subscription): typeof func
+export function subscribe(func: ElapsingSubscription, elapseIn: number, iterations?: number, iterateTimestamp?: boolean): typeof func
+export function subscribe(func: Subscription | ElapsingSubscription, elapseIn?: number, iterations: number = 1, iterateTimestamp = false): typeof func {
+  return sub(func, elapseIn, iterations, iterateTimestamp as true, 1)
 }
 export default subscribe
 
