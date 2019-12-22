@@ -26,7 +26,7 @@ export function subscribe(func: Subscription | ElapsingSubscription, elapseIn?: 
         }
         catch(e) {}
 
-        if (iterations !== 0) subscribe(func, elapseIn, iterations-1)
+        if (iterations > 1) subscribe(func, elapseIn, iterations-1)
      }, elapseIn)
    })
   }
