@@ -18,6 +18,10 @@ function sub(func: Subscription | ElapsingSubscription, elapseIn?: number, itera
     else elapsingSubscriptions.push({begin, func})
 
     setTimeout(() => {  
+      if (iterations > 1) requestAnimationFrame(() => {
+        sub(func, elapseIn, iterations, iterateTimestamp as true, inIteration, begin)
+      })
+
       let index = findIndexOfElapsingSubscriptionsFunc(func)
       if (index === -1) return
       
@@ -27,10 +31,12 @@ function sub(func: Subscription | ElapsingSubscription, elapseIn?: number, itera
       let elapsed = inIteration * elapseIn
       let timestamp = begin + elapsed
       let absoluteDelta = timestamp - lastTimestamp
+
       func(elapsed, absoluteDelta * ivertOfAbsoluteDeltaAt60FPS, timestamp, absoluteDelta)
 
-      if (iterations > 1) sub(func, elapseIn, iterations-1, iterateTimestamp as true, inIteration+1, begin)
-    }, elapseIn - 1) // setTimout is only 1ms accurate. In an edge case it is better to drop one frame instead of execute one to many
+      iterations--
+      inIteration++
+    }, elapseIn - 1) // setTimout is only 1ms accurate. In an edge case it is better to drop one frame instead of execute one too many
   }
   else subscriptions.push(func as Subscription)
   
