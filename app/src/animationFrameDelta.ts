@@ -1,4 +1,5 @@
 const now = performance.now.bind(performance)
+const minimalTimestampDifference = .0000000001
 
 type Subscription = (delta: number, timestamp: number, absoluteDelta: number) => void
 type ElapsingSubscription = (runningFor: number, delta: number, timestamp: number, absoluteDelta: number) => void
@@ -17,14 +18,14 @@ export function subscribe(func: Subscription | ElapsingSubscription, elapseIn?: 
 
     requestAnimationFrame(() => {
       setTimeout(() => {    
-        let timestamp = now()
-        let absoluteDelta = timestamp - lastTimestamp
-        func(elapseIn, absoluteDelta * ivertOfAbsoluteDeltaAt60FPS, timestamp, absoluteDelta)
-
         try {
           unsubscribe(func)
         }
         catch(e) {}
+
+        let timestamp = now()
+        let absoluteDelta = timestamp - lastTimestamp
+        if (Math.abs(stats.timestamp - timestamp) > minimalTimestampDifference) func(elapseIn, absoluteDelta * ivertOfAbsoluteDeltaAt60FPS, timestamp, absoluteDelta)
 
         if (iterations > 1) subscribe(func, elapseIn, iterations-1)
      }, elapseIn)
