@@ -1,7 +1,7 @@
 const now = performance.now.bind(performance)
 
-type Subscription = (delta: number, timestamp: number, absoluteDelta: number) => void
-type ElapsingSubscription = (runningFor: number, delta: number, timestamp: number, absoluteDelta: number) => void
+export type Subscription = (delta: number, timestamp: number, absoluteDelta: number) => void
+export type ElapsingSubscription = (runningFor: number, delta: number, timestamp: number, absoluteDelta: number) => void
 
 const subscriptions: Subscription[] = []
 const elapsingSubscriptions: {begin: number, func: ElapsingSubscription}[] = []
