@@ -1,20 +1,20 @@
 const now = performance.now.bind(performance)
 
-export type Subscription = (delta: number, timestamp: number, absoluteDelta: number) => void
+export type InfiniteSubscription = (delta: number, timestamp: number, absoluteDelta: number) => void
 export type ElapsingSubscription = (runningFor: number, delta: number, timestamp: number, absoluteDelta: number) => void
 
-const subscriptions: Subscription[] = []
+const subscriptions: InfiniteSubscription[] = []
 const elapsingSubscriptions: {begin: number, func: ElapsingSubscription}[] = []
-const initalElapsingSubscriptions: ElapsingSubscription[] = []
+const initialElapsingSubscriptions: ElapsingSubscription[] = []
 
 
 
-function sub(func: Subscription): typeof func
+function sub(func: InfiniteSubscription): typeof func
 function sub(func: ElapsingSubscription, elapseIn: number, iterations: number, iterateTimestamp: false): typeof func
 function sub(func: ElapsingSubscription, elapseIn: number, iterations: number, iterateTimestamp: true, inIteration: number, begin?: number): typeof func
-function sub(func: Subscription | ElapsingSubscription, elapseIn?: number, iterations?: number, iterateTimestamp?: boolean, inIteration?: number, begin?: number): typeof func {
+function sub(func: Subscription, elapseIn?: number, iterations?: number, iterateTimestamp?: boolean, inIteration?: number, begin?: number): typeof func {
   if (elapseIn) {
-    if (iterateTimestamp || begin === undefined) initalElapsingSubscriptions.push(func)
+    if (iterateTimestamp || begin === undefined) initialElapsingSubscriptions.push(func)
     else elapsingSubscriptions.push({begin, func})
 
     setTimeout(() => {  
@@ -32,33 +32,37 @@ function sub(func: Subscription | ElapsingSubscription, elapseIn?: number, itera
       let timestamp = begin + elapsed
       let absoluteDelta = timestamp - lastTimestamp
 
-      func(elapsed, absoluteDelta * ivertOfAbsoluteDeltaAt60FPS, timestamp, absoluteDelta)
+      func(elapsed, absoluteDelta * invertOfAbsoluteDeltaAt60FPS, timestamp, absoluteDelta)
 
       iterations--
       inIteration++
     }, elapseIn - 1) // setTimout is only 1ms accurate. In an edge case it is better to drop one frame instead of execute one too many
   }
-  else subscriptions.push(func as Subscription)
+  else subscriptions.push(func as InfiniteSubscription)
   
   
 
   return func
 }
 
+export class CancelAbleSubscriptionPromise extends Promise<void> {
+  constructor(private func: Subscription, executor: (resolve: (value?: void | PromiseLike<void>) => void, reject: (reason?: any) => void) => void) {
+    super(executor)
+  }
+  cancel() {
+    unsubscribe(this.func)
+  }
+}
 
-export function subscribe(func: Subscription): typeof func
+export function subscribe(func: InfiniteSubscription): typeof func
 export function subscribe(func: ElapsingSubscription, elapseIn: number, iterations?: number, iterateTimestamp?: boolean): typeof func
-export function subscribe(func: Subscription | ElapsingSubscription, elapseIn?: number, iterations: number = 1, iterateTimestamp = false): typeof func {
+export function subscribe(func: Subscription, elapseIn?: number, iterations: number = 1, iterateTimestamp = true): typeof func {
   return sub(func, elapseIn, iterations, iterateTimestamp as true, 1)
 }
 export default subscribe
 
 
 
-let ignore = false
-export function ignoreUnsubscriptionError(to: boolean = true) {
-  ignore = to
-}
 
 function findIndexOfElapsingSubscriptionsFunc(func: ElapsingSubscription) {
   let at = -1
@@ -71,21 +75,23 @@ function findIndexOfElapsingSubscriptionsFunc(func: ElapsingSubscription) {
   return at
 }
 
-export function unsubscribe(func: Subscription | ElapsingSubscription) {
+export type Subscription = InfiniteSubscription | ElapsingSubscription
+
+function unsubscribe(func: Subscription) {
   let at = findIndexOfElapsingSubscriptionsFunc(func)
   if (at !== -1) elapsingSubscriptions.splice(at, 1)
   else {
-    at = subscriptions.indexOf(func as Subscription)
+    at = subscriptions.indexOf(func as InfiniteSubscription)
     if (at !== -1) subscriptions.splice(at, 1)
     else {
-      at = initalElapsingSubscriptions.indexOf(func)
+      at = initialElapsingSubscriptions.indexOf(func)
       if (at !== -1) subscriptions.splice(at, 1)
-      else if (!ignore) throw new Error("Invalid request to unsubscribe. Given function is not subscribed.\n\nTo ignore this error globally please call \"reqaf.ignoreUnsubscriptionError()\".\n")
+      // subscription might have already elapsed
     }
   }
 }
 
-const ivertOfAbsoluteDeltaAt60FPS = 60 / 1000
+const invertOfAbsoluteDeltaAt60FPS = 60 / 1000
 
 
 export const stats: {
@@ -94,7 +100,7 @@ export const stats: {
   timestamp: number         // time since application start in ms (updates on frame drawn)
 } = {
   delta: 1,
-  absoluteDelta: 1 / ivertOfAbsoluteDeltaAt60FPS,
+  absoluteDelta: 1 / invertOfAbsoluteDeltaAt60FPS,
   timestamp: 0
 }
 
@@ -107,7 +113,7 @@ export const stats: {
 let index: number       // to prevent GC
 let lastTimestamp: number = now()
 let timestamp: number
-let currentSubscriptions: Subscription[]
+let currentSubscriptions: InfiniteSubscription[]
 let currentElapsingSubscriptions: {begin: number, func: ElapsingSubscription}[]
 let currentAnything: any
 let currentTimestamp: number
@@ -117,13 +123,13 @@ const loop = () => {
   currentTimestamp = timestamp = now()
   stats.absoluteDelta = timestamp - lastTimestamp
   lastTimestamp = stats.timestamp = timestamp
-  stats.delta = stats.absoluteDelta * ivertOfAbsoluteDeltaAt60FPS
+  stats.delta = stats.absoluteDelta * invertOfAbsoluteDeltaAt60FPS
 
 
 
-  for (; 0 !== initalElapsingSubscriptions.length;) {
-    elapsingSubscriptions.push({begin: currentTimestamp, func: initalElapsingSubscriptions[0]})
-    initalElapsingSubscriptions.splice(0, 1)
+  for (; 0 !== initialElapsingSubscriptions.length;) {
+    elapsingSubscriptions.push({begin: currentTimestamp, func: initialElapsingSubscriptions[0]})
+    initialElapsingSubscriptions.splice(0, 1)
   }
 
   //clone to ensure that no subscriptions are added during (inside) one
