@@ -3,30 +3,68 @@ const now = performance.now.bind(performance)
 export type InfiniteSubscription = (delta: number, timestamp: number, absoluteDelta: number) => void
 export type ElapsingSubscription = (runningFor: number, delta: number, timestamp: number, absoluteDelta: number) => void
 
-type RemoveIndex = {remove: () => boolean}
+type RemoveIndexLink<T = unknown> = {
+  remove(): boolean, 
+  swapIndex<E extends T>(Ind: RemoveIndexedArray<E>, add?: E): void
+  swapIndex<E>(Ind: RemoveIndexedArray<E>, add: E): void
+}
 
-class RemoveIndexedArray<T> extends Array<T> {
-  constructor(...a: T[]) {
-    super(...a)
+class RemoveIndexedArray<T> {
+  public readonly a: T[] = []
+  constructor() {
+    
   }
-  indexedAdd(...a: T[]): RemoveIndex {
-    let index = this.length
-    let len = a.length
-    this.push(...a)
+  public readonly linkIndex: RemoveIndexLink[] = []
+  private ls: {[index in number]: ((addCount: number) => void)} = {}
+  add(a: T): RemoveIndexLink<T> {
+    let index = this.a.length
+    let len = 1
+    
+    let f = this.ls[index] = (addCount: number) => {
+      delete this.ls[index]
+      index += addCount
+      this.ls[index] = f
+    }
+    this.a.push(a)
+    let that = this
     let q = {
-      remove: () => {
-        this.splice(index, len)
-        q.remove = () => false
+      remove() {
+        that.remove(index, len)
+        this.remove = () => false
         return true
+      },
+      swapIndex<E>(Ind: RemoveIndexedArray<E>, add: E = a as any) {
+        let n = Ind.add(add)
+        this.remove()
+        this.remove = n.remove
+        this.swapIndex = n.swapIndex
       }
     }
+    this.linkIndex.push(q)
     return q
+  }
+  remove(index: number, len = 1) {
+    this.a.splice(index, len)
+    delete this.ls[index]
+    delete this.linkIndex[index]
+    let keys = Object.keys(this.ls)
+    let from: number
+    for (let i = 0; i < keys.length; i++) {
+      if (+keys[i] > index) {
+        from = i
+        break
+      }
+    }
+    for (let i = from; i < keys.length; i++) {
+      this.ls[keys[i]](-len)
+    }
+    
   }
 }
 
 const subscriptions: RemoveIndexedArray<InfiniteSubscription> = new RemoveIndexedArray()
 const elapsingSubscriptions: RemoveIndexedArray<{begin: number, func: ElapsingSubscription}> = new RemoveIndexedArray()
-const initialElapsingSubscriptions: RemoveIndexedArray<ElapsingSubscription> = new RemoveIndexedArray()
+const initialElapsingSubscriptions: RemoveIndexedArray<{begin?: number, func: ElapsingSubscription}> = new RemoveIndexedArray()
 
 
 
@@ -36,69 +74,80 @@ function sub(func: ElapsingSubscription, elapseIn: number, iterations: number, i
 function sub(func: ElapsingSubscription, elapseIn: number, iterations: number, iterateTimestamp: true, inIteration: number, begin?: number): CancelAbleSubscriptionPromise
 function sub(func: Subscription, elapseIn?: number, iterations?: number, iterateTimestamp?: boolean, inIteration?: number, begin?: number): CancelAbleSubscriptionPromise {
   if (elapseIn) {
-    let elem: RemoveIndex
-    if (iterateTimestamp || begin === undefined) elem = initialElapsingSubscriptions.indexedAdd(func)
-    else elem = elapsingSubscriptions.indexedAdd({begin, func})
+    let b = {begin, func}
+    let elem = begin !== undefined ? elapsingSubscriptions.add(b) : initialElapsingSubscriptions.add(b)
+    
 
-    let ret = new CancelAbleSubscriptionPromise(() => {
-      if (nestedRet) nestedRet.cancel()
+    const removeElem = (clean: boolean) => {
+      if (elem.remove()) {
+        return new Promise((res) => {
+          requestAnimationFrame(() => {
+            let timestamp: number
+            let elapsed: number
+            if (clean) {
+              elapsed = inIteration * elapseIn
+              timestamp = b.begin + elapsed
+              if (iterateTimestamp) elapsed = elapsed / inIteration
+            }
+            else {
+              timestamp = lastTimestamp
+              elapsed = timestamp - b.begin
+            }
+            let absoluteDelta = timestamp - lastTimestamp
+      
+            func(elapsed, absoluteDelta * invertOfAbsoluteDeltaAt60FPS, timestamp, absoluteDelta)
+      
+            iterations--
+            inIteration++
+            res()
+          })
+        })
+      }
+    }
+
+    let res: Function
+    let ret = new CancelAbleSubscriptionPromise((r) => {
+      res = r
+    }, () => {
       clearTimeout(timeoutID)
-      elem.remove()
+      if (nestedRet) nestedRet.cancel()
+      removeElem(false).then(() => res())
     })
 
     let nestedRet: CancelAbleSubscriptionPromise
-
     let timeoutID = setTimeout(() => { 
-      let proms = [] 
-      if (iterations > 1) requestAnimationFrame(() => {
-        proms.push(nestedRet = sub(func, elapseIn, iterations, iterateTimestamp as true, inIteration, begin))
-      })
-
-      let index = findIndexOfElapsingSubscriptionsFunc(func)
-      if (index === -1) return
+      let proms = []
       
-      let { begin } = elapsingSubscriptions[index]
-      elapsingSubscriptions.splice(index, 1)
+      if (iterations > 1) {
+        proms.push(new Promise((res) => {
+          requestAnimationFrame(() => {
+            (nestedRet = sub(func, elapseIn, iterations, iterateTimestamp as true, inIteration, iterateTimestamp ? lastTimestamp : b.begin)).then(res)
+          })
+        }))
+      }
 
-      let elapsed = inIteration * elapseIn
-      let timestamp = begin + elapsed
-      let absoluteDelta = timestamp - lastTimestamp
+      proms.push(removeElem(true))
 
-      func(elapsed, absoluteDelta * invertOfAbsoluteDeltaAt60FPS, timestamp, absoluteDelta)
+      Promise.all(proms).then(() => res())
 
-      iterations--
-      inIteration++
-
-      Promise.all(proms).then(() => {(ret as any).resolve()})
     }, elapseIn - 1) // setTimeout is only 1ms accurate. In an edge case it is better to drop one frame instead of execute one too many
 
     return ret
   }
   else {
-    let { remove: removeElem } = subscriptions.indexedAdd(func as InfiniteSubscription)
-    return (new CancelAbleSubscriptionPromise(() => {
+    let { remove: removeElem } = subscriptions.add(func as InfiniteSubscription)
+    return new CancelAbleSubscriptionPromise(() => {}, () => {
       removeElem()
-    }) as any).resolve()
+    })
   }
 }
 
 export class CancelAbleSubscriptionPromise extends Promise<void> {
-  private res: Function
   public unsubscribe: Function
-  constructor(unsubscribe: Function) {
-    let res: Function
-    super((r) => {
-      res = r
-    })
+  constructor(f: (resolve: (value?: void | PromiseLike<void>) => void, reject: (reason?: any) => void) => void, unsubscribe: Function) {
+    super(f)
     this.unsubscribe = unsubscribe
-    this.res = res
   }
-  private resolve() {
-    this.res()
-    return this
-  }
-  
-
   cancel() {
     this.unsubscribe()
   }
@@ -113,33 +162,8 @@ export default subscribe
 
 
 
-
-function findIndexOfElapsingSubscriptionsFunc(func: ElapsingSubscription) {
-  let at = -1
-  for (let i = 0; i < elapsingSubscriptions.length; i++) {
-    if (elapsingSubscriptions[i].func === func) {
-      at = i
-      break
-    }
-  }
-  return at
-}
-
 export type Subscription = InfiniteSubscription | ElapsingSubscription
 
-function unsubscribe(func: Subscription) {
-  let at = findIndexOfElapsingSubscriptionsFunc(func)
-  if (at !== -1) elapsingSubscriptions.splice(at, 1)
-  else {
-    at = subscriptions.indexOf(func as InfiniteSubscription)
-    if (at !== -1) subscriptions.splice(at, 1)
-    else {
-      at = initialElapsingSubscriptions.indexOf(func)
-      if (at !== -1) subscriptions.splice(at, 1)
-      // subscription might have already elapsed
-    }
-  }
-}
 
 const invertOfAbsoluteDeltaAt60FPS = 60 / 1000
 
@@ -177,14 +201,13 @@ const loop = () => {
 
 
 
-  for (; 0 !== initialElapsingSubscriptions.length;) {
-    elapsingSubscriptions.push({begin: currentTimestamp, func: initialElapsingSubscriptions[0]})
-    initialElapsingSubscriptions.splice(0, 1)
+  for (; 0 !== initialElapsingSubscriptions.a.length;) {
+    initialElapsingSubscriptions.linkIndex[0].swapIndex(elapsingSubscriptions, {begin: initialElapsingSubscriptions.a[0].begin = currentTimestamp, func: initialElapsingSubscriptions.a[0].func})
   }
 
-  //clone to ensure that no subscriptions are added during (inside) one
-  currentSubscriptions = [...subscriptions]
-  currentElapsingSubscriptions = [...elapsingSubscriptions]
+  //clone to ensure that no subscriptions are added during the execution of one
+  currentSubscriptions = [...subscriptions.a]
+  currentElapsingSubscriptions = [...elapsingSubscriptions.a]
 
   for (index = 0; index < currentSubscriptions.length; index++) {
     currentSubscriptions[index](stats.delta, stats.timestamp, stats.absoluteDelta)
