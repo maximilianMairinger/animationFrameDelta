@@ -5,4 +5,4 @@ setTimeout(() => {
   animationFrameDelta.subscribe((e) => {
     console.log(e)
   }, 1000, 2, )  
-}, 200)
+}, 500)

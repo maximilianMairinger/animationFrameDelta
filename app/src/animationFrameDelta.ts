@@ -3,23 +3,55 @@ const now = performance.now.bind(performance)
 export type InfiniteSubscription = (delta: number, timestamp: number, absoluteDelta: number) => void
 export type ElapsingSubscription = (runningFor: number, delta: number, timestamp: number, absoluteDelta: number) => void
 
-const subscriptions: InfiniteSubscription[] = []
-const elapsingSubscriptions: {begin: number, func: ElapsingSubscription}[] = []
-const initialElapsingSubscriptions: ElapsingSubscription[] = []
+type RemoveIndex = {remove: () => boolean}
+
+class RemoveIndexedArray<T> extends Array<T> {
+  constructor(...a: T[]) {
+    super(...a)
+  }
+  indexedAdd(...a: T[]): RemoveIndex {
+    let index = this.length
+    let len = a.length
+    this.push(...a)
+    let q = {
+      remove: () => {
+        this.splice(index, len)
+        q.remove = () => false
+        return true
+      }
+    }
+    return q
+  }
+}
+
+const subscriptions: RemoveIndexedArray<InfiniteSubscription> = new RemoveIndexedArray()
+const elapsingSubscriptions: RemoveIndexedArray<{begin: number, func: ElapsingSubscription}> = new RemoveIndexedArray()
+const initialElapsingSubscriptions: RemoveIndexedArray<ElapsingSubscription> = new RemoveIndexedArray()
 
 
 
-function sub(func: InfiniteSubscription): typeof func
-function sub(func: ElapsingSubscription, elapseIn: number, iterations: number, iterateTimestamp: false): typeof func
-function sub(func: ElapsingSubscription, elapseIn: number, iterations: number, iterateTimestamp: true, inIteration: number, begin?: number): typeof func
-function sub(func: Subscription, elapseIn?: number, iterations?: number, iterateTimestamp?: boolean, inIteration?: number, begin?: number): typeof func {
+
+function sub(func: InfiniteSubscription): CancelAbleSubscriptionPromise
+function sub(func: ElapsingSubscription, elapseIn: number, iterations: number, iterateTimestamp: false): CancelAbleSubscriptionPromise
+function sub(func: ElapsingSubscription, elapseIn: number, iterations: number, iterateTimestamp: true, inIteration: number, begin?: number): CancelAbleSubscriptionPromise
+function sub(func: Subscription, elapseIn?: number, iterations?: number, iterateTimestamp?: boolean, inIteration?: number, begin?: number): CancelAbleSubscriptionPromise {
   if (elapseIn) {
-    if (iterateTimestamp || begin === undefined) initialElapsingSubscriptions.push(func)
-    else elapsingSubscriptions.push({begin, func})
+    let elem: RemoveIndex
+    if (iterateTimestamp || begin === undefined) elem = initialElapsingSubscriptions.indexedAdd(func)
+    else elem = elapsingSubscriptions.indexedAdd({begin, func})
 
-    setTimeout(() => {  
+    let ret = new CancelAbleSubscriptionPromise(() => {
+      if (nestedRet) nestedRet.cancel()
+      clearTimeout(timeoutID)
+      elem.remove()
+    })
+
+    let nestedRet: CancelAbleSubscriptionPromise
+
+    let timeoutID = setTimeout(() => { 
+      let proms = [] 
       if (iterations > 1) requestAnimationFrame(() => {
-        sub(func, elapseIn, iterations, iterateTimestamp as true, inIteration, begin)
+        proms.push(nestedRet = sub(func, elapseIn, iterations, iterateTimestamp as true, inIteration, begin))
       })
 
       let index = findIndexOfElapsingSubscriptionsFunc(func)
@@ -36,27 +68,45 @@ function sub(func: Subscription, elapseIn?: number, iterations?: number, iterate
 
       iterations--
       inIteration++
-    }, elapseIn - 1) // setTimout is only 1ms accurate. In an edge case it is better to drop one frame instead of execute one too many
-  }
-  else subscriptions.push(func as InfiniteSubscription)
-  
-  
 
-  return func
+      Promise.all(proms).then(() => {(ret as any).resolve()})
+    }, elapseIn - 1) // setTimeout is only 1ms accurate. In an edge case it is better to drop one frame instead of execute one too many
+
+    return ret
+  }
+  else {
+    let { remove: removeElem } = subscriptions.indexedAdd(func as InfiniteSubscription)
+    return (new CancelAbleSubscriptionPromise(() => {
+      removeElem()
+    }) as any).resolve()
+  }
 }
 
 export class CancelAbleSubscriptionPromise extends Promise<void> {
-  constructor(private func: Subscription, executor: (resolve: (value?: void | PromiseLike<void>) => void, reject: (reason?: any) => void) => void) {
-    super(executor)
+  private res: Function
+  public unsubscribe: Function
+  constructor(unsubscribe: Function) {
+    let res: Function
+    super((r) => {
+      res = r
+    })
+    this.unsubscribe = unsubscribe
+    this.res = res
   }
+  private resolve() {
+    this.res()
+    return this
+  }
+  
+
   cancel() {
-    unsubscribe(this.func)
+    this.unsubscribe()
   }
 }
 
-export function subscribe(func: InfiniteSubscription): typeof func
-export function subscribe(func: ElapsingSubscription, elapseIn: number, iterations?: number, iterateTimestamp?: boolean): typeof func
-export function subscribe(func: Subscription, elapseIn?: number, iterations: number = 1, iterateTimestamp = true): typeof func {
+export function subscribe(func: InfiniteSubscription): CancelAbleSubscriptionPromise
+export function subscribe(func: ElapsingSubscription, elapseIn: number, iterations?: number, iterateTimestamp?: boolean): CancelAbleSubscriptionPromise
+export function subscribe(func: Subscription, elapseIn?: number, iterations: number = 1, iterateTimestamp = true): CancelAbleSubscriptionPromise {
   return sub(func, elapseIn, iterations, iterateTimestamp as true, 1)
 }
 export default subscribe
