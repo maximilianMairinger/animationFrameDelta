@@ -11,6 +11,7 @@ const now = performance.now.bind(performance)
 
 export type InfiniteSubscription = (delta: number, timestamp: number, absoluteDelta: number) => void
 export type ElapsingSubscription = (runningFor: number, delta: number, timestamp: number, absoluteDelta: number) => void
+export type AnySubscriptionFunction = InfiniteSubscription | ElapsingSubscription
 
 type RemoveIndexLink<T = unknown> = {
   remove(): boolean, 
@@ -38,25 +39,7 @@ class RemoveIndexedArray<T> {
     let that = this
     let q = {
       remove() {
-        that.a.splice(index, len)
-        delete that.ls[index]
-        that.linkIndex.splice(index, 1)
-        let keys = Object.keys(that.ls)
-        let from: number
-        for (let i = 0; i < keys.length; i++) {
-          if (+keys[i] > index) {
-            from = i
-            break
-          }
-        }
-        for (let i = from; i < keys.length; i++) {
-          that.ls[keys[i]](-len)
-        }
-        
-
-
-        this.remove = () => false
-        return true
+        return that.remove(index, len)
       },
       swapIndex<E>(Ind: RemoveIndexedArray<E>, add: E = a as any) {
         let n = Ind.add(add)
@@ -67,6 +50,27 @@ class RemoveIndexedArray<T> {
     }
     this.linkIndex.push(q)
     return q
+  }
+
+  remove(index: number, len = 1) {
+    this.a.splice(index, len)
+    delete this.ls[index]
+    this.linkIndex.splice(index, 1)
+    let keys = Object.keys(this.ls)
+    let from: number
+    for (let i = 0; i < keys.length; i++) {
+      if (+keys[i] > index) {
+        from = i
+        break
+      }
+    }
+    for (let i = from; i < keys.length; i++) {
+      this.ls[keys[i]](-len)
+    }
+
+    this.remove = () => false
+
+    return true
   }
 }
 
@@ -193,8 +197,36 @@ export const stats: {
   timestamp: 0
 }
 
-export function unsubscribe(subscription: CancelAbleSubscriptionPromise) {
-  subscription.cancel()
+function removeFromIndexWhenFound<Find extends {[key in string]: any}>(ar: RemoveIndexedArray<Find>, find: Find): boolean
+function removeFromIndexWhenFound<Key extends string, Ar extends {[key in string]: any}>(ar: RemoveIndexedArray<Ar>, find: Ar[Key], key: Key): boolean
+function removeFromIndexWhenFound<Key extends string, Find extends {[key in string]: any}>(ar: RemoveIndexedArray<Find>, find: Find[Key], key?: Key) {
+  let a = ar.a
+  let found: number
+  if (key !== undefined) {
+    for (let index = 0; index < a.length; index++) {
+      if (a[index][key] === find) found = found
+    }
+  }
+  else {
+    let ind = a.indexOf(find)
+    if (ind !== -1) found = ind
+  }
+
+  if (found === undefined) return false
+  
+  ar.remove(found)
+
+  return true
+}
+
+export function unsubscribe(subscription: CancelAbleSubscriptionPromise | AnySubscriptionFunction) {
+  if (subscription instanceof CancelAbleSubscriptionPromise) subscription.cancel()
+  else {
+    if (removeFromIndexWhenFound(subscriptions, subscription)) return
+    if (removeFromIndexWhenFound(elapsingSubscriptions, subscription, "func")) return
+    if (removeFromIndexWhenFound(initialElapsingSubscriptions, subscription, "func")) return
+    if (removeFromIndexWhenFound(endElapsingSubscriptions, subscription, "func")) return
+  }
 }
 
 
