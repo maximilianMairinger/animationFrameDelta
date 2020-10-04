@@ -193,7 +193,9 @@ export const stats: {
   timestamp: 0
 }
 
-
+export function unsubscribe(subscription: CancelAbleSubscriptionPromise) {
+  subscription.cancel()
+}
 
 
 
