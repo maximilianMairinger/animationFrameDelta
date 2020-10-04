@@ -135,7 +135,7 @@ function sub(func: Subscription, elapseIn?: number, iterations?: number, iterate
 
       res()
 
-    }, elapseIn) // setTimeout is only 1ms accurate. In an edge case it is better to drop one frame instead of execute one too many
+    }, elapseIn - 1) // setTimeout is only 1ms accurate. In an edge case it is better to drop one frame instead of execute one too many
 
     return ret
   }
