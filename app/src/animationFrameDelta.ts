@@ -46,7 +46,7 @@ class RemoveIndexedArray<T> {
   remove(index: number, len = 1) {
     this.a.splice(index, len)
     delete this.ls[index]
-    delete this.linkIndex[index]
+    this.linkIndex.splice(index, 1)
     let keys = Object.keys(this.ls)
     let from: number
     for (let i = 0; i < keys.length; i++) {
@@ -76,32 +76,24 @@ function sub(func: Subscription, elapseIn?: number, iterations?: number, iterate
   if (elapseIn) {
     let b = {begin, func}
     let elem = begin !== undefined ? elapsingSubscriptions.add(b) : initialElapsingSubscriptions.add(b)
-    
 
     const removeElem = (clean: boolean) => {
       if (elem.remove()) {
-        return new Promise((res) => {
-          requestAnimationFrame(() => {
-            let timestamp: number
-            let elapsed: number
-            if (clean) {
-              elapsed = inIteration * elapseIn
-              timestamp = b.begin + elapsed
-              if (iterateTimestamp) elapsed = elapsed / inIteration
-            }
-            else {
-              timestamp = lastTimestamp
-              elapsed = timestamp - b.begin
-            }
-            let absoluteDelta = timestamp - lastTimestamp
-      
-            func(elapsed, absoluteDelta * invertOfAbsoluteDeltaAt60FPS, timestamp, absoluteDelta)
-      
-            iterations--
-            inIteration++
-            res()
-          })
-        })
+        let elapsed: number
+        if (clean) {
+          elapsed = inIteration * elapseIn
+          timestamp = b.begin + elapsed
+          if (iterateTimestamp) elapsed = elapsed / inIteration
+        }
+        else {
+          elapsed = timestamp - b.begin
+        }
+        let absoluteDelta = timestamp - lastTimestamp
+  
+        func(elapsed, absoluteDelta * invertOfAbsoluteDeltaAt60FPS, timestamp, absoluteDelta)
+  
+        iterations--
+        inIteration++
       }
     }
 
@@ -111,26 +103,39 @@ function sub(func: Subscription, elapseIn?: number, iterations?: number, iterate
     }, () => {
       clearTimeout(timeoutID)
       if (nestedRet) nestedRet.cancel()
-      removeElem(false).then(() => res())
+      removeElem(false)
+      res()
     })
 
     let nestedRet: CancelAbleSubscriptionPromise
-    let timeoutID = setTimeout(() => { 
-      let proms = []
-      
-      if (iterations > 1) {
-        proms.push(new Promise((res) => {
-          requestAnimationFrame(() => {
-            (nestedRet = sub(func, elapseIn, iterations, iterateTimestamp as true, inIteration, iterateTimestamp ? lastTimestamp : b.begin)).then(res)
+    let start = now()
+    let timeoutID = setTimeout(async () => {
+      console.log(now() - start)
+
+      removeElem(true)
+      // let cur = currentTimestamp
+      // let next = await nextFrame(() => {
+      //   cur = now()
+      // })
+
+      // console.log("delta", stats.absoluteDelta)
+
+      // console.log(next - cur)
+
+      if (iterations > 0) {
+        
+        await nextFrame(async () => {
+          await nextFrame(async (timestamp) => {
+            await (nestedRet = sub(func, elapseIn, iterations, iterateTimestamp as true, inIteration, iterateTimestamp ? timestamp : b.begin))
           })
-        }))
+        })
+        
+        
       }
 
-      proms.push(removeElem(true))
+      res()
 
-      Promise.all(proms).then(() => res())
-
-    }, elapseIn - 1) // setTimeout is only 1ms accurate. In an edge case it is better to drop one frame instead of execute one too many
+    }, elapseIn) // setTimeout is only 1ms accurate. In an edge case it is better to drop one frame instead of execute one too many
 
     return ret
   }
@@ -191,13 +196,24 @@ let currentSubscriptions: InfiniteSubscription[]
 let currentElapsingSubscriptions: {begin: number, func: ElapsingSubscription}[]
 let currentAnything: any
 let currentTimestamp: number
+let currentNextFrames: any
 
 
 const loop = () => {
+  console.log("------------------------------", nextFrameCbs.length)
   currentTimestamp = timestamp = now()
   stats.absoluteDelta = timestamp - lastTimestamp
   lastTimestamp = stats.timestamp = timestamp
   stats.delta = stats.absoluteDelta * invertOfAbsoluteDeltaAt60FPS
+
+
+  currentNextFrames = [...nextFrameCbs]
+  for (; 0 !== currentNextFrames.length;) {
+    debugger
+    currentNextFrames[0](currentTimestamp)
+    currentNextFrames.splice(0, 1)
+    nextFrameCbs.splice(0, 1)
+  }
 
 
 
@@ -221,3 +237,19 @@ const loop = () => {
   requestAnimationFrame(loop)
 }
 requestAnimationFrame(loop)
+
+
+const nextFrameCbs = []
+/**
+ * The Callback is intentionally not promiseified. Native promises are *not* synchronous which is probably not intended here.
+ * @param cb Called when next frame hits. Similar to requestAnimationFrame, but does use performance.now() as the rest of animation-frame-delta
+ */
+export function nextFrame(cb: (timestamp: number) => void | Promise<void>): Promise<void> {
+  return new Promise((res) => {
+    nextFrameCbs.push(async (timestamp: number) => {
+      await cb(timestamp)
+      res()
+    })
+  })
+  
+}
