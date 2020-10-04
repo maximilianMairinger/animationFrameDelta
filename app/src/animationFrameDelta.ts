@@ -214,9 +214,7 @@ function removeFromIndexWhenFound<Key extends string, Find extends {[key in stri
 
   if (found === undefined) return false
   
-  ar.remove(found)
-
-  return true
+  return ar.remove(found)
 }
 
 export function unsubscribe(subscription: CancelAbleSubscriptionPromise | AnySubscriptionFunction) {
