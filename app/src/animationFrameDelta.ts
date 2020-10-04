@@ -117,9 +117,7 @@ function sub(func: Subscription, elapseIn?: number, iterations?: number, iterate
     })
 
     let nestedRet: CancelAbleSubscriptionPromise
-    let start = now()
     let timeoutID = setTimeout(async () => {
-      console.log(now() - start)
       
       let prom = new Promise((resolve) => {
         b.resolve = resolve
@@ -136,7 +134,6 @@ function sub(func: Subscription, elapseIn?: number, iterations?: number, iterate
         
         await nextFrame(async () => {
           await nextFrame(async (timestamp) => {
-            console.log(count++)
             await (nestedRet = sub(func, elapseIn, iterations, iterateTimestamp as true, inIteration, iterateTimestamp ? timestamp : b.begin))
           })
         })
@@ -168,7 +165,6 @@ export class CancelAbleSubscriptionPromise extends Promise<void> {
     this.unsubscribe()
   }
 }
-let count = 0
 
 export function subscribe(func: InfiniteSubscription): CancelAbleSubscriptionPromise
 export function subscribe(func: ElapsingSubscription, elapseIn: number, iterations?: number, iterateTimestamp?: boolean): CancelAbleSubscriptionPromise
@@ -216,7 +212,6 @@ let len: number
 
 
 const loop = () => {
-  // console.log("------------------------------", nextFrameCbs.length)
   currentTimestamp = timestamp = now()
   stats.absoluteDelta = timestamp - lastTimestamp
   lastTimestamp = stats.timestamp = timestamp
@@ -256,11 +251,9 @@ const loop = () => {
   for (index = 0; index < len; index++) {
     elem = currentElapsingSubscriptionsEnd[index]
     if (elem.end > currentTimestamp) {
-      console.log("another")
       elem.func(currentTimestamp - elem.begin, stats.delta, stats.timestamp, stats.absoluteDelta)
     }
     else {
-      console.log("resolve")
       elem.resolve()
     }
   }
