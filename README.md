@@ -7,7 +7,7 @@
 Register a animation loop like so
 
 ```js
-import animFrame, { unsubscribe } from "animation-frame-delta"
+import animFrame from "animation-frame-delta"
 
 animFrame((delta, timestamp, absoluteDelta) => {
   console.log(delta)          // 1 at 60fps
@@ -19,21 +19,29 @@ animFrame((delta, timestamp, absoluteDelta) => {
 When given a duration, the progress is beeing passed to the individual function.
 
 ```js
-let subscription = (progress, delta, timestamp, absoluteDelta) => {
-  console.log(progress)       // 0..1000
-}
 let duration = 1000
 
-animFrame(subscription, duration)
+let subscription = animFrame((progress, delta, timestamp, absoluteDelta) => {
+  console.log(progress)       // 0..1000
+}, duration)
 ```
 
-To unsubscribe simply call
+To cancel simply call
 
 ```js
-unsubscribe(subscription)
+subscription.cancel()
 ```
 
-TODO: iterations
+An elapsing subscription can also be iterated a number of times
+
+```ts
+let iterate = 3
+
+let subscription = animFrame((progress) => {
+  console.log(progress)       // 0..1000 ; 0..1000 ; 0..1000
+}, duration, iterate)
+```
+
 
 ## Conribute
 
