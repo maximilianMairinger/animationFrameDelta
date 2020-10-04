@@ -10,12 +10,13 @@ setTimeout(() => {
   let elem = document.querySelector("#test") as HTMLElement
   let canc = animationFrameDelta.subscribe((e) => {
     let now = performance.now()
-    console.log(elem.innerText = (e).toString(), "                 " + (now - lastTime), "                         ", now - beginTime)
+    if (e > 1000) debugger
+    // console.log(elem.innerText = (e).toString(), "                 " + (now - lastTime), "                         ", now - beginTime)
     lastTime = now
-  }, 1000, 2)
+  }, 1000, Infinity)
 
   // setTimeout(() => {
   //   canc.cancel()
   // }, 600)
 
-}, 200)
+}, 500)
