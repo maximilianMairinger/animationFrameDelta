@@ -13,10 +13,10 @@ setTimeout(() => {
     if (e > 1000) debugger
     console.log(elem.innerText = (e).toString(), "                 " + (now - lastTime), "                         ", now - beginTime)
     lastTime = now
-  }, 1000, Infinity)
+  }, 1000, 10)
 
-  // setTimeout(() => {
-  //   canc.cancel()
-  // }, 600)
+  setTimeout(() => {
+    canc.duration(120)
+  }, 600)
 
 }, 500)

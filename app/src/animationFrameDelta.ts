@@ -82,9 +82,9 @@ const endElapsingSubscriptions: RemoveIndexedArray<{begin: number, end?: number,
 
 
 function sub(func: InfiniteSubscription): CancelAbleSubscriptionPromise
-function sub(func: ElapsingSubscription, elapseIn: number, iterations: number, iterateTimestamp: false): CancelAbleSubscriptionPromise
-function sub(func: ElapsingSubscription, elapseIn: number, iterations: number, iterateTimestamp: true, inIteration: number, begin?: number): CancelAbleSubscriptionPromise
-function sub(func: Subscription, elapseIn?: number, iterations?: number, iterateTimestamp?: boolean, inIteration?: number, begin?: number): CancelAbleSubscriptionPromise {
+function sub(func: ElapsingSubscription, elapseIn: number, iterations: number): CancelAbleElapsingSubscriptionPromise
+function sub(func: ElapsingSubscription, elapseIn: number, iterations: number, inIteration: number, begin?: number, beginDelta?: number): CancelAbleElapsingSubscriptionPromise
+function sub(func: Subscription, elapseIn?: number, iterations?: number, inIteration?: number, begin?: number, beginDelta?: number): CancelAbleSubscriptionPromise {
   if (elapseIn) {
     let b: {begin: number, func: ElapsingSubscription, end?: number, resolve?: () => void} = {begin, func}
     let elem = begin !== undefined ? elapsingSubscriptions.add(b) : initialElapsingSubscriptions.add(b)
@@ -95,7 +95,7 @@ function sub(func: Subscription, elapseIn?: number, iterations?: number, iterate
         if (clean) {
           elapsed = inIteration * elapseIn
           timestamp = b.begin + elapsed
-          if (iterateTimestamp) elapsed = elapsed / inIteration
+          elapsed = elapsed / inIteration
         }
         else {
           elapsed = timestamp - b.begin
@@ -106,21 +106,48 @@ function sub(func: Subscription, elapseIn?: number, iterations?: number, iterate
   
         iterations--
         inIteration++
+        return true
       }
+      return false
     }
 
     let res: Function
-    let ret = new CancelAbleSubscriptionPromise((r) => {
+    let ret = new CancelAbleElapsingSubscriptionPromise((r) => {
       res = r
     }, () => {
       clearTimeout(timeoutID)
       if (nestedRet) nestedRet.cancel()
-      removeElem(false)
+      let e = removeElem(false)
       res()
+      return e
+    }, {
+      get: () => {
+        return elapseIn
+      },
+      set: (duration) => {
+        clearTimeout(timeoutID)
+        let timeLeft = now() - (startTimeoutTime + elapseIn)
+        elapseIn = duration
+        if (timeLeft >= 0) setTimeout(timeoutFunc, timeLeft)
+        else {
+          let iterationsSkippedNegative = Math.ceil(timeLeft / duration)
+          iterations += iterationsSkippedNegative
+          let remSuc = elem.remove()
+          if (iterations > 0) {
+            if (remSuc) {
+              inIteration -= iterationsSkippedNegative
+              requestNextFrame(timeLeft - iterationsSkippedNegative * duration)
+            }
+          }
+          
+        }
+      }
     })
 
     let nestedRet: CancelAbleSubscriptionPromise
-    let timeoutID = setTimeout(async () => {
+    let startTimeoutTime = now()
+
+    const timeoutFunc = async () => {
       
       let prom = new Promise((resolve) => {
         b.resolve = resolve
@@ -129,50 +156,62 @@ function sub(func: Subscription, elapseIn?: number, iterations?: number, iterate
       })
       
 
-      await Promise.race([delay(absoluteDeltaAt60FPS), prom])
+      await Promise.race([delay(-addition), prom])
 
-      removeElem(true)
-
-      if (iterations > 0) {
-        
-        await nextFrame(async () => {
-          await nextFrame(async (timestamp) => {
-            await (nestedRet = sub(func, elapseIn, iterations, iterateTimestamp as true, inIteration, iterateTimestamp ? timestamp : b.begin))
-          })
+      if (removeElem(true)) {
+        nextFrame(() => {
+          requestNextFrame(0)
         })
         
-        
+      }
+    }
+
+    const requestNextFrame = async (beginDelta: number) => {
+      
+      if (iterations > 0) {
+        await nextFrame(async (timestamp) => {
+          await (nestedRet = sub(func, elapseIn, iterations, inIteration, timestamp, beginDelta))
+        })  
       }
 
       res()
+    }
+    let addition = -absoluteDeltaAt60FPS + (beginDelta !== undefined ? beginDelta : 0)
 
-    }, elapseIn - absoluteDeltaAt60FPS - 1)
+    let timeoutID = setTimeout(timeoutFunc, elapseIn - 1 + addition)
 
     return ret
   }
   else {
     let { remove: removeElem } = subscriptions.add(func as InfiniteSubscription)
     return new CancelAbleSubscriptionPromise(() => {}, () => {
-      removeElem()
+      return removeElem()
     })
   }
 }
 
 export class CancelAbleSubscriptionPromise extends Promise<void> {
-  public unsubscribe: Function
-  constructor(f: (resolve: (value?: void | PromiseLike<void>) => void, reject: (reason?: any) => void) => void, unsubscribe: Function) {
+  constructor(f: (resolve: (value?: void | PromiseLike<void>) => void, reject: (reason?: any) => void) => void, public cancel: () => boolean) {
     super(f)
-    this.unsubscribe = unsubscribe
   }
-  cancel() {
-    this.unsubscribe()
+}
+
+export class CancelAbleElapsingSubscriptionPromise extends CancelAbleSubscriptionPromise {
+  constructor(f: (resolve: (value?: void | PromiseLike<void>) => void, reject: (reason?: any) => void) => void, unsubscribe: () => boolean, private _duration: {set: (duration: number) => void, get: () => number}) {
+    super(f, unsubscribe)
+  }
+  duration(): number
+  duration(duration: number): void
+  duration(duration?: number): any {
+    if (duration !== undefined) this._duration.set(duration)
+    else this._duration.get()
   }
 }
 
 export function subscribe(func: InfiniteSubscription): CancelAbleSubscriptionPromise
-export function subscribe(func: ElapsingSubscription, elapseIn: number, iterations?: number, iterateTimestamp?: boolean): CancelAbleSubscriptionPromise
-export function subscribe(func: Subscription, elapseIn?: number, iterations: number = 1, iterateTimestamp = true): CancelAbleSubscriptionPromise {
-  return sub(func, elapseIn, iterations, iterateTimestamp as true, 1)
+export function subscribe(func: ElapsingSubscription, elapseIn: number, iterations?: number, iterateTimestamp?: boolean): CancelAbleElapsingSubscriptionPromise
+export function subscribe(func: Subscription, elapseIn?: number, iterations: number = 1): CancelAbleSubscriptionPromise {
+  return sub(func, elapseIn, iterations, 1)
 }
 export default subscribe
 
