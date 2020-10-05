@@ -199,11 +199,10 @@ export class CancelAbleSubscriptionPromise extends Promise<void> {
 export class CancelAbleElapsingSubscriptionPromise extends CancelAbleSubscriptionPromise {
   constructor(f: (resolve: (value?: void | PromiseLike<void>) => void, reject: (reason?: any) => void) => void, unsubscribe: () => boolean, private _duration: {set: (duration: number) => void}, duration: number | Data<number>) {
     super(f, unsubscribe)
+    this.duration(duration)
     this.properDurationData.get((e) => {
       this._duration.set(e)
     }, false)
-
-    this.duration(duration)
   }
   private properDurationData = new Data() as Data<number>
   private durationDataSubscription = new DataSubscription(new Data(0), (e) => {
