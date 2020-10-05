@@ -1,3 +1,5 @@
+import { Data, DataSubscription } from "josm"
+
 function delay(timeout: number) {
   return new Promise((res) => {
     setTimeout(() => {
@@ -200,10 +202,17 @@ export class CancelAbleElapsingSubscriptionPromise extends CancelAbleSubscriptio
   constructor(f: (resolve: (value?: void | PromiseLike<void>) => void, reject: (reason?: any) => void) => void, unsubscribe: () => boolean, private _duration: {set: (duration: number) => void, get: () => number}) {
     super(f, unsubscribe)
   }
+  private durationDataSubscription = new DataSubscription(new Data(0), this._duration.set, true, false)
   duration(): number
-  duration(duration: number): void
-  duration(duration?: number): any {
-    if (duration !== undefined) this._duration.set(duration)
+  duration(duration: number | Data<number> | null): void
+  duration(duration?: number | Data<number> | null): any {
+    if (duration !== undefined) {
+      if (duration instanceof Data) this.durationDataSubscription.activate(false).data(duration)
+      else {
+        this.durationDataSubscription.deactivate()
+        if (duration !== null) this._duration.set(duration)
+      }
+    }
     else this._duration.get()
   }
 }
