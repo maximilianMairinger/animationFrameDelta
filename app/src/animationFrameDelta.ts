@@ -39,6 +39,7 @@ class RemoveIndexedArray<T> {
     let that = this
     let q = {
       remove() {
+        this.remove = () => false
         return that.remove(index, len)
       },
       swapIndex<E>(Ind: RemoveIndexedArray<E>, add: E = a as any) {
@@ -67,8 +68,6 @@ class RemoveIndexedArray<T> {
     for (let i = from; i < keys.length; i++) {
       this.ls[keys[i]](-len)
     }
-
-    this.remove = () => false
 
     return true
   }
@@ -126,6 +125,8 @@ function sub(func: Subscription, elapseIn?: number, iterations?: number, iterate
       let prom = new Promise((resolve) => {
         b.resolve = resolve
         b.end = b.begin + elapseIn
+        console.log("swap")
+        // debugger
         elem.swapIndex(endElapsingSubscriptions, b)
       })
       

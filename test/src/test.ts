@@ -11,7 +11,7 @@ setTimeout(() => {
   let canc = animationFrameDelta.subscribe((e) => {
     let now = performance.now()
     if (e > 1000) debugger
-    // console.log(elem.innerText = (e).toString(), "                 " + (now - lastTime), "                         ", now - beginTime)
+    console.log(elem.innerText = (e).toString(), "                 " + (now - lastTime), "                         ", now - beginTime)
     lastTime = now
   }, 1000, Infinity)
 
