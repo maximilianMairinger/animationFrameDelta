@@ -1,6 +1,6 @@
 {
   "name": "animation-frame-delta",
-  "version": "2.6.0",
+  "version": "2.6.1",
   "description": "Performant animation loop with central delta calculation.",
   "main": "app/dist/animationFrameDelta.js",
   "types": "app/dist/animationFrameDelta.d.ts",
