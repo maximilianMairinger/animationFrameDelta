@@ -125,8 +125,6 @@ function sub(func: Subscription, elapseIn?: number, iterations?: number, iterate
       let prom = new Promise((resolve) => {
         b.resolve = resolve
         b.end = b.begin + elapseIn
-        console.log("swap")
-        // debugger
         elem.swapIndex(endElapsingSubscriptions, b)
       })
       
