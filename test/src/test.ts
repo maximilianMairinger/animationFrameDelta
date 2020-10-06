@@ -16,7 +16,7 @@ setTimeout(() => {
   }, 1000, 10)
 
   setTimeout(() => {
-    canc.duration(120)
-  }, 600)
+    canc.duration(300)
+  }, 200)
 
 }, 500)
