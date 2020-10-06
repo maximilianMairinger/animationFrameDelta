@@ -235,9 +235,9 @@ export class CancelAbleElapsingSubscriptionPromise extends CancelAbleSubscriptio
     let begin = this.begin.get()
     let curProgAbs = now() - begin
     if (to !== undefined) {
-      this.begin.set(begin + to * this.progress() - curProgAbs)
+      this.begin.set(begin + to * this.duration() - curProgAbs)
     }
-    else return curProgAbs / this.progress()
+    else return curProgAbs / this.duration()
   }
 }
 
