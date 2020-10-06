@@ -143,7 +143,14 @@ function sub(func: Subscription, duration_durationData?: number | Data<number>, 
           
         }
       }
-    }, duration_durationData)
+    }, duration_durationData, {
+      get() {
+        return b.begin
+      },
+      set(to) {
+        b.begin = to
+      }
+    })
 
     let nestedRet: CancelAbleSubscriptionPromise
     let startTimeoutTime = now()
@@ -198,7 +205,7 @@ export class CancelAbleSubscriptionPromise extends Promise<void> {
 }
 
 export class CancelAbleElapsingSubscriptionPromise extends CancelAbleSubscriptionPromise {
-  constructor(f: (resolve: (value?: void | PromiseLike<void>) => void, reject: (reason?: any) => void) => void, unsubscribe: () => boolean, private _duration: {set: (duration: number) => void}, duration: number | Data<number>) {
+  constructor(f: (resolve: (value?: void | PromiseLike<void>) => void, reject: (reason?: any) => void) => void, unsubscribe: () => boolean, private _duration: {set: (duration: number) => void}, duration: number | Data<number>, private begin: {get(): number, set(to: number): void}) {
     super(f, unsubscribe)
     this.duration(duration)
     this.properDurationData.get((e) => {
@@ -220,6 +227,17 @@ export class CancelAbleElapsingSubscriptionPromise extends CancelAbleSubscriptio
       }
     }
     else this.properDurationData.get()
+  }
+  
+  progress(): number
+  progress(to: number): void
+  progress(to?: number): any {
+    let begin = this.begin.get()
+    let curProgAbs = now() - begin
+    if (to !== undefined) {
+      this.begin.set(begin + to * this.progress() - curProgAbs)
+    }
+    else return curProgAbs / this.progress()
   }
 }
 
