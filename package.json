@@ -30,22 +30,22 @@
   "homepage": "https://github.com/maximilianMairinger/edom#readme",
   "devDependencies": {
     "@types/clone": "^0.1.30",
-    "@types/node": "^12.12.21",
+    "@types/node": "^12.12.64",
     "@types/tween.js": "^17.2.0",
     "css-loader": "^2.1.0",
     "cssnano": "^4.1.8",
     "postcss-loader": "^3.0.0",
-    "terser-webpack-plugin": "^1.4.3",
+    "terser-webpack-plugin": "^1.4.5",
     "to-string-loader": "^1.1.6",
     "ts-loader": "^5.3.3",
-    "typescript": "^3.7.3",
+    "typescript": "^3.9.7",
     "url-loader": "^1.1.2",
-    "webpack": "^4.41.3",
-    "webpack-cli": "^3.3.10",
-    "webpack-inject-plugin": "^1.5.2",
+    "webpack": "^4.44.2",
+    "webpack-cli": "^3.3.12",
+    "webpack-inject-plugin": "^1.5.4",
     "webpack-merge": "^4.2.2"
   },
   "dependencies": {
-    "josm": "^1.2.3"
+    "josm": "^1.2.4"
   }
 }
