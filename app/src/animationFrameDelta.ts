@@ -226,7 +226,7 @@ export class CancelAbleElapsingSubscriptionPromise extends CancelAbleSubscriptio
         if (duration !== null) this.properDurationData.set(duration)
       }
     }
-    else this.properDurationData.get()
+    else return this.properDurationData.get()
   }
   
   progress(): number
