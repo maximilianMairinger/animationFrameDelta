@@ -129,7 +129,7 @@ function sub(func: Subscription, duration_durationData?: number | Data<number>, 
         duration = dur
         let timeLeft = (startTimeoutTime + duration) - now()
         
-        if (timeLeft >= 0) setTimeout(timeoutFunc, timeLeft)
+        if (timeLeft >= 0) timeoutID = setTimeout(timeoutFunc, timeLeft)
         else {
           let iterationsSkippedNegative = Math.ceil(timeLeft / dur)
           iterations += iterationsSkippedNegative
