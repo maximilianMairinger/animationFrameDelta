@@ -1,6 +1,6 @@
 {
   "name": "animation-frame-delta",
-  "version": "2.7.2",
+  "version": "2.7.3",
   "description": "Performant animation loop with central delta calculation.",
   "main": "app/dist/animationFrameDelta.js",
   "types": "app/dist/animationFrameDelta.d.ts",
@@ -46,6 +46,6 @@
     "webpack-merge": "^4.2.2"
   },
   "dependencies": {
-    "josm": "^1.2.4"
+    "josm": "^1.2.7"
   }
 }

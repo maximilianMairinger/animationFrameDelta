@@ -8,6 +8,10 @@ function delay(timeout: number) {
   })
 }
 
+export function ignoreUnsubscriptionError() {
+  console.warn("animationFrameDelta.ignoreUnsubscriptionError is deprecated.")
+}
+
 
 const now = performance.now.bind(performance)
 
