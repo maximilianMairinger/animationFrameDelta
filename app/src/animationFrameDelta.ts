@@ -386,7 +386,7 @@ const nextFrameCbs = []
  * The callback is intentionally not promiseified. Native promises are *not* synchronous which is probably not intended here.
  * @param cb Called when next frame hits. Similar to requestAnimationFrame, but does use performance.now() as the rest of animation-frame-delta
  */
-export function nextFrame(cb: (timestamp: number) => void | Promise<void>): Promise<void> {
+export function nextFrame(cb: (timestamp: number) => void | Promise<void>){
   let f: Function
   return new CancelAbleNextFramePromise((res) => {
     nextFrameCbs.push(f = async (timestamp: number) => {
