@@ -127,7 +127,6 @@ function sub(func: Subscription, duration_durationData?: number | Data<number>, 
       clearTimeout(timeoutID)
       if (nestedRet) nestedRet.cancel()
       let e = removeElem(false)
-      res()
       return e
     }, {
       set: (dur) => {
