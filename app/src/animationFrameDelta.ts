@@ -13,7 +13,7 @@ export function ignoreUnsubscriptionError() {
 }
 
 
-export const now = performance.now.bind(performance)
+export const now = performance.now.bind(performance) as () => number
 
 export type InfiniteSubscription = (delta: number, timestamp: number, absoluteDelta: number) => void
 export type ElapsingSubscription = (runningFor: number, delta: number, timestamp: number, absoluteDelta: number) => void
