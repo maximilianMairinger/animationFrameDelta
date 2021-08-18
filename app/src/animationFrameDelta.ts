@@ -163,7 +163,7 @@ function sub(func: Subscription, duration_durationData?: number | Data<number>, 
     const timeoutFunc = async () => {
       
       let prom = new Promise((resolve) => {
-        b.resolve = resolve
+        b.resolve = resolve as any
         b.end = b.begin + duration
         elem.swapIndex(endElapsingSubscriptions, b)
       })
@@ -196,7 +196,8 @@ function sub(func: Subscription, duration_durationData?: number | Data<number>, 
     return ret
   }
   else {
-    let { remove: removeElem } = subscriptions.add(func as InfiniteSubscription)
+    let { remove } = subscriptions.add(func as InfiniteSubscription)
+    const removeElem = remove.bind(subscriptions)
     return new CancelAbleSubscriptionPromise(() => {}, () => {
       return removeElem()
     })
