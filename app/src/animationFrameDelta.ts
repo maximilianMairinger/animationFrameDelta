@@ -13,14 +13,16 @@ export function ignoreUnsubscriptionError() {
 }
 
 
-const now = performance.now.bind(performance)
+export const now = performance.now.bind(performance) as () => number
 
 export type InfiniteSubscription = (delta: number, timestamp: number, absoluteDelta: number) => void
 export type ElapsingSubscription = (runningFor: number, delta: number, timestamp: number, absoluteDelta: number) => void
 export type AnySubscriptionFunction = InfiniteSubscription | ElapsingSubscription
+type SuccessfullyRemoved = boolean
+
 
 type RemoveIndexLink<T = unknown> = {
-  remove(): boolean, 
+  remove(): SuccessfullyRemoved, 
   swapIndex<E extends T>(Ind: RemoveIndexedArray<E>, add?: E): void
   swapIndex<E>(Ind: RemoveIndexedArray<E>, add: E): void
 }
@@ -125,7 +127,6 @@ function sub(func: Subscription, duration_durationData?: number | Data<number>, 
       clearTimeout(timeoutID)
       if (nestedRet) nestedRet.cancel()
       let e = removeElem(false)
-      res()
       return e
     }, {
       set: (dur) => {
@@ -195,21 +196,26 @@ function sub(func: Subscription, duration_durationData?: number | Data<number>, 
     return ret
   }
   else {
-    let { remove: removeElem } = subscriptions.add(func as InfiniteSubscription)
+    let { remove } = subscriptions.add(func as InfiniteSubscription)
+    const removeElem = remove.bind(subscriptions)
     return new CancelAbleSubscriptionPromise(() => {}, () => {
       return removeElem()
     })
   }
 }
 
-export class CancelAbleSubscriptionPromise extends Promise<void> {
-  constructor(f: (resolve: (value?: void | PromiseLike<void>) => void, reject: (reason?: any) => void) => void, public cancel: () => boolean) {
+export class CancelAblePromise extends Promise<void> {
+  constructor(f: (resolve: (value?: void | PromiseLike<void>) => void, reject: (reason?: any) => void) => void, public cancel: () => SuccessfullyRemoved) {
     super(f)
   }
 }
 
+export class CancelAbleSubscriptionPromise extends CancelAblePromise {
+
+}
+
 export class CancelAbleElapsingSubscriptionPromise extends CancelAbleSubscriptionPromise {
-  constructor(f: (resolve: (value?: void | PromiseLike<void>) => void, reject: (reason?: any) => void) => void, unsubscribe: () => boolean, private _duration: {set: (duration: number) => void}, duration: number | Data<number>, private begin: {get(): number, set(to: number): void}) {
+  constructor(f: (resolve: (value?: void | PromiseLike<void>) => void, reject: (reason?: any) => void) => void, unsubscribe: () => SuccessfullyRemoved, private _duration: {set: (duration: number) => void}, duration: number | Data<number>, private begin: {get(): number, set(to: number): void}) {
     super(f, unsubscribe)
     this.duration(duration)
     this.properDurationData.get((e) => {
@@ -272,8 +278,8 @@ export const stats: {
   timestamp: 0
 }
 
-function removeFromIndexWhenFound<Find extends {[key in string]: any}>(ar: RemoveIndexedArray<Find>, find: Find): boolean
-function removeFromIndexWhenFound<Key extends string, Ar extends {[key in string]: any}>(ar: RemoveIndexedArray<Ar>, find: Ar[Key], key: Key): boolean
+function removeFromIndexWhenFound<Find extends {[key in string]: any}>(ar: RemoveIndexedArray<Find>, find: Find): SuccessfullyRemoved
+function removeFromIndexWhenFound<Key extends string, Ar extends {[key in string]: any}>(ar: RemoveIndexedArray<Ar>, find: Ar[Key], key: Key): SuccessfullyRemoved
 function removeFromIndexWhenFound<Key extends string, Find extends {[key in string]: any}>(ar: RemoveIndexedArray<Find>, find: Find[Key], key?: Key) {
   let a = ar.a
   let found: number
@@ -370,16 +376,29 @@ const loop = () => {
 requestAnimationFrame(loop)
 
 
+export class CancelAbleNextFramePromise extends CancelAblePromise {
+
+}
+
 const nextFrameCbs = []
 /**
- * The Callback is intentionally not promiseified. Native promises are *not* synchronous which is probably not intended here.
+ * Call back when next frame hits. Can be used to add subscriptions for this timestamp last minute (or rather millisecond)
+ * The callback is intentionally not promiseified. Native promises are *not* synchronous which is probably not intended here.
  * @param cb Called when next frame hits. Similar to requestAnimationFrame, but does use performance.now() as the rest of animation-frame-delta
  */
-export function nextFrame(cb: (timestamp: number) => void | Promise<void>): Promise<void> {
-  return new Promise((res) => {
-    nextFrameCbs.push(async (timestamp: number) => {
+export function nextFrame(cb: (timestamp: number) => void | Promise<void>){
+  let f: Function
+  return new CancelAbleNextFramePromise((res) => {
+    nextFrameCbs.push(f = async (timestamp: number) => {
       await cb(timestamp)
       res()
     })
+  }, () => {
+    let i = nextFrameCbs.indexOf(f)
+    if (i !== -1) {
+      nextFrameCbs.splice(i, 1)
+      return true
+    }
+    return false
   })
 }
