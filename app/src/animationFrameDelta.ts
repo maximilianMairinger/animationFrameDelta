@@ -1,7 +1,7 @@
 import { Data, DataSubscription } from "josm"
 
 function delay(timeout: number) {
-  return new Promise((res) => {
+  return new Promise<void>((res) => {
     setTimeout(() => {
       res()
     }, timeout)
@@ -162,7 +162,7 @@ function sub(func: Subscription, duration_durationData?: number | Data<number>, 
     const timeoutFunc = async () => {
       
       let prom = new Promise((resolve) => {
-        b.resolve = resolve
+        b.resolve = resolve as any
         b.end = b.begin + duration
         elem.swapIndex(endElapsingSubscriptions, b)
       })
@@ -382,5 +382,4 @@ export function nextFrame(cb: (timestamp: number) => void | Promise<void>): Prom
       res()
     })
   })
-  
 }
