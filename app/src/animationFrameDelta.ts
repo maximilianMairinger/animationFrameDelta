@@ -47,14 +47,14 @@ class RemoveIndexedArray<T> {
     let that = this
     let q = {
       remove() {
-        this.remove = () => false
+        q.remove = () => false
         return that.remove(index, len)
       },
       swapIndex<E>(Ind: RemoveIndexedArray<E>, add: E = a as any) {
         let n = Ind.add(add)
-        this.remove()
-        this.remove = n.remove
-        this.swapIndex = n.swapIndex
+        q.remove()
+        q.remove = n.remove
+        q.swapIndex = n.swapIndex
       }
     }
     this.linkIndex.push(q)
