@@ -9,6 +9,21 @@ setTimeout(() => {
   console.log("-----------------------------------")
   debugger
   console.log(ww.cancel())
+  
+
+  setTimeout(() => {
+    ww.resume()
+
+    setTimeout(() => {
+      
+      
+      ww.cancel()
+      
+      setTimeout(() => {
+        ww.resume()
+      }, 500)
+    }, 500)
+  }, 500)
 }, 500)
 
 
