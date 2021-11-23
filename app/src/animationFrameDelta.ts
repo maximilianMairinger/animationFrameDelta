@@ -1,4 +1,5 @@
 import { Data, DataSubscription } from "josm"
+import { List as LinkedList, Item } from 'linked-list'
 
 function delay(timeout: number) {
   return new Promise<void>((res) => {
@@ -13,6 +14,26 @@ export function ignoreUnsubscriptionError() {
 }
 
 
+class ValueIndexedLinkedList<T> extends LinkedList<Token<T>> {
+  constructor(...init) {
+
+  }
+}
+
+class Token<T> extends Item {
+  constructor(public value: T) {
+    super()
+  }
+  remove() {
+    if (this.list) {
+      this.detach()
+      return true
+    }
+    else return false
+  }
+}
+
+
 export const now = performance.now.bind(performance) as () => number
 
 export type InfiniteSubscription = (delta: number, timestamp: number, absoluteDelta: number) => void
@@ -21,82 +42,21 @@ export type AnySubscriptionFunction = InfiniteSubscription | ElapsingSubscriptio
 type SuccessfullyRemoved = boolean
 
 
-type RemoveIndexLink<T = unknown> = {
-  remove(): SuccessfullyRemoved, 
-  swapIndex<E extends T>(Ind: RemoveIndexedArray<E>, add?: E): void
-  swapIndex<E>(Ind: RemoveIndexedArray<E>, add: E): void
-}
-
-class RemoveIndexedArray<T> {
-  public readonly a: T[] = []
-  constructor() {
-    
-  }
-  public readonly linkIndex: RemoveIndexLink[] = []
-  private ls: {[index in number]: ((addCount: number) => void)} = {}
-  add(a: T): RemoveIndexLink<T> {
-    let index = this.a.length
-    let len = 1
-    
-    let f = this.ls[index] = (addCount: number) => {
-      delete this.ls[index]
-      index += addCount
-      this.ls[index] = f
-    }
-    this.a.push(a)
-    let that = this
-    let q = {
-      remove() {
-        q.remove = () => false
-        return that.remove(index, len)
-      },
-      swapIndex<E>(Ind: RemoveIndexedArray<E>, add: E = a as any) {
-        let n = Ind.add(add)
-        q.remove()
-        q.remove = n.remove
-        q.swapIndex = n.swapIndex
-      }
-    }
-    this.linkIndex.push(q)
-    return q
-  }
-
-  remove(index: number, len = 1) {
-    this.a.splice(index, len)
-    delete this.ls[index]
-    this.linkIndex.splice(index, 1)
-    let keys = Object.keys(this.ls)
-    let from: number
-    for (let i = 0; i < keys.length; i++) {
-      if (+keys[i] > index) {
-        from = i
-        break
-      }
-    }
-    for (let i = from; i < keys.length; i++) {
-      this.ls[keys[i]](-len)
-    }
-
-    return true
-  }
-}
-
-const subscriptions: RemoveIndexedArray<InfiniteSubscription> = new RemoveIndexedArray()
-const elapsingSubscriptions: RemoveIndexedArray<{begin: number, func: ElapsingSubscription}> = new RemoveIndexedArray()
-const initialElapsingSubscriptions: RemoveIndexedArray<{begin: number, func: ElapsingSubscription}> = new RemoveIndexedArray()
-const endElapsingSubscriptions: RemoveIndexedArray<{begin: number, end?: number, func: ElapsingSubscription, resolve: () => void}> = new RemoveIndexedArray()
-
-
+const subscriptions: LinkedList<InfiniteSubscription> = new LinkedList()
+const elapsingSubscriptions: LinkedList<{begin: number, func: ElapsingSubscription}> = new LinkedList()
+const initialElapsingSubscriptions: LinkedList<{begin: number, func: ElapsingSubscription}> = new LinkedList()
+const endElapsingSubscriptions: LinkedList<{begin: number, end?: number, func: ElapsingSubscription, resolve: () => void}> = new LinkedList()
 
 
 function sub(func: InfiniteSubscription): CancelAbleSubscriptionPromise
 function sub(func: ElapsingSubscription, duration: number | Data<number>, iterations: number): CancelAbleElapsingSubscriptionPromise
 function sub(func: ElapsingSubscription, duration: number | Data<number>, iterations: number, inIteration: number, begin?: number, beginDelta?: number): CancelAbleElapsingSubscriptionPromise
 function sub(func: Subscription, duration_durationData?: number | Data<number>, iterations?: number, inIteration?: number, begin?: number, beginDelta?: number): CancelAblePromise {
-  if (duration_durationData) {
+  if (duration_durationData !== undefined) {
     let duration = duration_durationData instanceof Data ? duration_durationData.get() : duration_durationData
     let b: {begin: number, func: ElapsingSubscription, end?: number, resolve?: () => void} = {begin, func}
-    let elem = begin !== undefined ? elapsingSubscriptions.add(b) : initialElapsingSubscriptions.add(b)
+    const elem = new Token(b)
+    begin !== undefined ? elapsingSubscriptions.append(elem) : initialElapsingSubscriptions.append(elem)
 
     const removeElem = (clean: boolean) => {
       if (elem.remove()) {
@@ -165,7 +125,8 @@ function sub(func: Subscription, duration_durationData?: number | Data<number>, 
       let prom = new Promise((resolve) => {
         b.resolve = resolve as any
         b.end = b.begin + duration
-        elem.swapIndex(endElapsingSubscriptions, b)
+        elem.remove()
+        endElapsingSubscriptions.append(elem)
       })
       
 
@@ -196,14 +157,11 @@ function sub(func: Subscription, duration_durationData?: number | Data<number>, 
     return ret
   }
   else {
-    const { remove } = subscriptions.add(func as InfiniteSubscription)
-    let removeElem = remove.bind(subscriptions)
-    return new CancelAbleSubscriptionPromise(() => {}, () => {
-      return removeElem()
-    }, () => {
-      const { remove } = subscriptions.add(func as InfiniteSubscription)
-      removeElem = remove.bind(subscriptions)
-    })
+    const elem = new Token(func)
+    const appendFunc = () => {subscriptions.append(elem)}
+    return new CancelAbleSubscriptionPromise(appendFunc, () => {
+      return elem.remove()
+    }, appendFunc)
   }
 }
 
@@ -283,24 +241,12 @@ export const stats: {
   timestamp: 0
 }
 
-function removeFromIndexWhenFound<Find extends {[key in string]: any}>(ar: RemoveIndexedArray<Find>, find: Find): SuccessfullyRemoved
-function removeFromIndexWhenFound<Key extends string, Ar extends {[key in string]: any}>(ar: RemoveIndexedArray<Ar>, find: Ar[Key], key: Key): SuccessfullyRemoved
-function removeFromIndexWhenFound<Key extends string, Find extends {[key in string]: any}>(ar: RemoveIndexedArray<Find>, find: Find[Key], key?: Key) {
-  let a = ar.a
-  let found: number
-  if (key !== undefined) {
-    for (let index = 0; index < a.length; index++) {
-      if (a[index][key] === find) found = found
-    }
-  }
-  else {
-    let ind = a.indexOf(find)
-    if (ind !== -1) found = ind
-  }
 
-  if (found === undefined) return false
+function removeFromLikedListByValue<T>(linkedList: LinkedList<Token<T>>, value: T) {
   
-  return ar.remove(found)
+  for (let token of linkedList) {
+    if (token.value)
+  }
 }
 
 export function unsubscribe(subscription: CancelAbleSubscriptionPromise | AnySubscriptionFunction) {

@@ -1,31 +1,34 @@
 import * as animationFrameDelta from "../../app/src/animationFrameDelta"
 
+import { List, Item } from "linked-list"
 
-const ww = animationFrameDelta.default((d) => {
-  console.log(d)
-})
 
-setTimeout(() => {
-  console.log("-----------------------------------")
-  debugger
-  console.log(ww.cancel())
-  
+class Token<T> extends Item {
+  constructor(public value: T) {
+    super()
+  }
+  remove() {
+    if (this.list) {
+      this.detach()
+      return true
+    }
+    else return false
+  }
+}
 
-  setTimeout(() => {
-    ww.resume()
+const l = new List()
 
-    setTimeout(() => {
-      
-      
-      ww.cancel()
-      
-      setTimeout(() => {
-        ww.resume()
-      }, 500)
-    }, 500)
-  }, 500)
-}, 500)
+const i1 = new Token(1)
+const i2 = new Token(2)
 
+debugger
+l.append(i1)
+l.append(i2)
+l.append(i1)
+
+for (let w of l) {
+  console.log(w)
+}
 
 // setTimeout(() => {
 //   let beginTime = performance.now()
