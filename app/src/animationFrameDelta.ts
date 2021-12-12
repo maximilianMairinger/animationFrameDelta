@@ -1,5 +1,5 @@
 import { Data, DataSubscription } from "josm"
-import { List as LinkedList, Item } from 'linked-list'
+import { LinkedList, Token } from 'fast-linked-list'
 
 function delay(timeout: number) {
   return new Promise<void>((res) => {
@@ -14,24 +14,7 @@ export function ignoreUnsubscriptionError() {
 }
 
 
-class ValueIndexedLinkedList<T> extends LinkedList<Token<T>> {
-  constructor(...init) {
 
-  }
-}
-
-class Token<T> extends Item {
-  constructor(public value: T) {
-    super()
-  }
-  remove() {
-    if (this.list) {
-      this.detach()
-      return true
-    }
-    else return false
-  }
-}
 
 
 export const now = performance.now.bind(performance) as () => number
@@ -54,9 +37,9 @@ function sub(func: ElapsingSubscription, duration: number | Data<number>, iterat
 function sub(func: Subscription, duration_durationData?: number | Data<number>, iterations?: number, inIteration?: number, begin?: number, beginDelta?: number): CancelAblePromise {
   if (duration_durationData !== undefined) {
     let duration = duration_durationData instanceof Data ? duration_durationData.get() : duration_durationData
-    let b: {begin: number, func: ElapsingSubscription, end?: number, resolve?: () => void} = {begin, func}
-    const elem = new Token(b)
-    begin !== undefined ? elapsingSubscriptions.append(elem) : initialElapsingSubscriptions.append(elem)
+    let b: {begin: number, func: ElapsingSubscription, end?: number, resolve?: () => void} = {begin, func};
+    const elem = (begin !== undefined ? elapsingSubscriptions : initialElapsingSubscriptions).push(b)
+    
 
     const removeElem = (clean: boolean) => {
       if (elem.remove()) {
@@ -79,6 +62,7 @@ function sub(func: Subscription, duration_durationData?: number | Data<number>, 
       }
       return false
     }
+    
 
     let res: Function
     let ret = new CancelAbleElapsingSubscriptionPromise((r) => {
@@ -125,8 +109,7 @@ function sub(func: Subscription, duration_durationData?: number | Data<number>, 
       let prom = new Promise((resolve) => {
         b.resolve = resolve as any
         b.end = b.begin + duration
-        elem.remove()
-        endElapsingSubscriptions.append(elem)
+        endElapsingSubscriptions.pushToken(elem.rm() as any as Token<{begin: number, end?: number, func: ElapsingSubscription, resolve: () => void}>)
       })
       
 
@@ -157,8 +140,8 @@ function sub(func: Subscription, duration_durationData?: number | Data<number>, 
     return ret
   }
   else {
-    const elem = new Token(func)
-    const appendFunc = () => {subscriptions.append(elem)}
+    const elem = new Token(func as InfiniteSubscription)
+    const appendFunc = () => {subscriptions.pushToken(elem)}
     return new CancelAbleSubscriptionPromise(appendFunc, () => {
       return elem.remove()
     }, appendFunc)
@@ -242,16 +225,33 @@ export const stats: {
 }
 
 
-function removeFromLikedListByValue<T>(linkedList: LinkedList<Token<T>>, value: T) {
-  
-  for (let token of linkedList) {
-    if (token.value)
+function removeFromIndexWhenFound<Find extends {[key in string]: any}>(ar: LinkedList<Find>, find: Find): SuccessfullyRemoved
+function removeFromIndexWhenFound<Key extends string, Ar extends {[key in string]: any}>(ar: LinkedList<Ar>, find: Ar[Key], key: Key): SuccessfullyRemoved
+function removeFromIndexWhenFound<Key extends string, Find extends {[key in string]: any}>(ar: LinkedList<Find>, find: Find[Key], key?: Key) {
+  try {
+    if (key === undefined) ar.forEach((val, tok) => {
+      if (val === find) {
+        tok.remove()
+        throw new Error()
+      }
+    })
+    else ar.forEach((val, tok) => {
+      if (val[key] === find) {
+        tok.remove()
+        throw new Error()
+      }
+    })
   }
+  catch {
+    return true
+  }
+  return false
 }
 
 export function unsubscribe(subscription: CancelAbleSubscriptionPromise | AnySubscriptionFunction) {
   if (subscription instanceof CancelAbleSubscriptionPromise) subscription.cancel()
   else {
+    console.warn("unsubscribe(subscription) is deprecated and will be removed in animationFrameDelta@3.0.0, use subscription.cancel() instead")
     if (removeFromIndexWhenFound(subscriptions, subscription)) return
     if (removeFromIndexWhenFound(elapsingSubscriptions, subscription, "func")) return
     if (removeFromIndexWhenFound(initialElapsingSubscriptions, subscription, "func")) return
@@ -263,63 +263,42 @@ export function unsubscribe(subscription: CancelAbleSubscriptionPromise | AnySub
 
 
 
-let index: number       // to prevent GC
 let lastTimestamp: number = now()
 let timestamp: number
-let currentSubscriptions: InfiniteSubscription[]
-let currentElapsingSubscriptions: {begin: number, func: ElapsingSubscription}[]
-let elem: any
-let currentTimestamp: number
-let currentNextFrames: any
-let currentElapsingSubscriptionsEnd: {end?: number, func: ElapsingSubscription, resolve: () => void}[]
-let len: number
 
+
+let absoluteDelta: number
+let delta: number
 
 const loop = () => {
-  currentTimestamp = timestamp = now()
-  stats.absoluteDelta = timestamp - lastTimestamp
+  timestamp = now()
+  absoluteDelta = stats.absoluteDelta = timestamp - lastTimestamp
   lastTimestamp = stats.timestamp = timestamp
-  stats.delta = stats.absoluteDelta * invertOfAbsoluteDeltaAt60FPS
+  delta = stats.delta = absoluteDelta * invertOfAbsoluteDeltaAt60FPS
 
+  const currentNextFrames = nextFrameCbs
+  nextFrameCbs = new LinkedList()
+  for (const cb of currentNextFrames) {
+    cb(timestamp)
+  }
 
-  currentNextFrames = [...nextFrameCbs]
-  for (; 0 !== currentNextFrames.length;) {
-    currentNextFrames[0](currentTimestamp)
-    currentNextFrames.splice(0, 1)
-    nextFrameCbs.splice(0, 1)
+  initialElapsingSubscriptions.forEach((val, token) => {
+    elapsingSubscriptions.pushToken(token)
+    val.begin = timestamp
+  })
+
+  for (const sub of subscriptions) {
+    sub(delta, timestamp, absoluteDelta)
   }
 
 
-
-  for (; 0 !== initialElapsingSubscriptions.a.length;) {
-    initialElapsingSubscriptions.linkIndex[0].swapIndex(elapsingSubscriptions, {begin: initialElapsingSubscriptions.a[0].begin = currentTimestamp, func: initialElapsingSubscriptions.a[0].func})
+  for (const {func, begin} of elapsingSubscriptions) {
+    func(timestamp - begin, delta, timestamp, absoluteDelta)
   }
-
-  //clone to ensure that no subscriptions are added during the execution of one
-  currentSubscriptions = [...subscriptions.a]
-  currentElapsingSubscriptions = [...elapsingSubscriptions.a]
-  currentElapsingSubscriptionsEnd = [...endElapsingSubscriptions.a]
-
-  len = currentSubscriptions.length
-  for (index = 0; index < len; index++) {
-    currentSubscriptions[index](stats.delta, stats.timestamp, stats.absoluteDelta)
-  }
-
-  len = currentElapsingSubscriptions.length
-  for (index = 0; index < len; index++) {
-    elem = currentElapsingSubscriptions[index]
-    elem.func(currentTimestamp - elem.begin, stats.delta, stats.timestamp, stats.absoluteDelta)
-  }
-
-  len = currentElapsingSubscriptionsEnd.length
-  for (index = 0; index < len; index++) {
-    elem = currentElapsingSubscriptionsEnd[index]
-    if (elem.end > currentTimestamp) {
-      elem.func(currentTimestamp - elem.begin, stats.delta, stats.timestamp, stats.absoluteDelta)
-    }
-    else {
-      elem.resolve()
-    }
+  
+  for (const elem of endElapsingSubscriptions) {
+    if (elem.end > timestamp) elem.func(timestamp - elem.begin, stats.delta, stats.timestamp, stats.absoluteDelta)
+    else elem.resolve()
   }
 
   requestAnimationFrame(loop)
@@ -331,25 +310,20 @@ export class CancelAbleNextFramePromise extends CancelAblePromise {
 
 }
 
-const nextFrameCbs = []
+let nextFrameCbs = new LinkedList<(timestamp: number) => void>()
 /**
  * Call back when next frame hits. Can be used to add subscriptions for this timestamp last minute (or rather millisecond)
  * The callback is intentionally not promiseified. Native promises are *not* synchronous which is probably not intended here.
  * @param cb Called when next frame hits. Similar to requestAnimationFrame, but does use performance.now() as the rest of animation-frame-delta
  */
-export function nextFrame(cb: (timestamp: number) => void | Promise<void>){
-  let f: Function
+export function nextFrame(cb?: (timestamp: number) => void | Promise<void>) {
+  let tok: Token<(timestamp: number) => void>
   return new CancelAbleNextFramePromise((res) => {
-    nextFrameCbs.push(f = async (timestamp: number) => {
-      await cb(timestamp)
+    tok = nextFrameCbs.push(async (timestamp: number) => {
+      if (cb) await cb(timestamp)
       res()
     })
   }, () => {
-    let i = nextFrameCbs.indexOf(f)
-    if (i !== -1) {
-      nextFrameCbs.splice(i, 1)
-      return true
-    }
-    return false
+    return tok.remove()
   })
 }

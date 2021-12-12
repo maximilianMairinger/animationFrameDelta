@@ -46,7 +46,7 @@
     "webpack-merge": "^4.2.2"
   },
   "dependencies": {
-    "josm": "^1.2.7",
-    "linked-list": "^3.0.1"
+    "fast-linked-list": "^3.0.4",
+    "josm": "^1.2.7"
   }
 }
