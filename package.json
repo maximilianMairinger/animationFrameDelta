@@ -47,6 +47,7 @@
   },
   "dependencies": {
     "fast-linked-list": "^3.0.4",
-    "josm": "^1.2.7"
+    "josm": "^1.2.7",
+    "tiny-delay": "^1.0.0"
   }
 }
