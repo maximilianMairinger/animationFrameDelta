@@ -12,9 +12,9 @@ export default {
   plugins: [
     typescript({tsconfig: "./tsconfig.dev.json", noEmitOnError: false, sourceMap: true}), 
     resolve({modulesOnly: true, preferBuiltins: true}),
-    // commonJS({
-    //   include: 'node_modules/**'
-    // }),
+    commonJS({
+      include: 'node_modules/**'
+    }),
     json()  
   ]
 };
