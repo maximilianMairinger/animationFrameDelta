@@ -1,17 +1,13 @@
 import { Data, DataSubscription } from "josm"
+import { CancelAblePromise, now } from "tiny-delay"
 
-export type SuccessfullyRemoved = boolean
+type SuccessfullyRemoved = boolean
 
 
 export function ignoreUnsubscriptionError() {
   console.warn("animationFrameDelta.ignoreUnsubscriptionError is deprecated.")
 }
 
-export class CancelAblePromise extends Promise<void> {
-  constructor(f: (resolve: (value?: void | PromiseLike<void>) => void, reject: (reason?: any) => void) => void, public cancel: () => SuccessfullyRemoved) {
-    super(f)
-  }
-}
 
 export class CancelAbleSubscriptionPromise extends CancelAblePromise {
   constructor(f: (resolve: (value?: void | PromiseLike<void>) => void, reject: (reason?: any) => void) => void, cancel: () => SuccessfullyRemoved, public resume: () => void) {
@@ -60,4 +56,4 @@ export class CancelAbleNextFramePromise extends CancelAblePromise {
 
 }
 
-export const now = performance.now.bind(performance) as () => number
+export { now } from "tiny-delay"
