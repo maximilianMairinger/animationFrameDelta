@@ -1,12 +1,15 @@
 import { Data, DataSubscription } from "josm"
 import { CancelAblePromise, now } from "tiny-delay"
+export { CancelAblePromise, now } from "tiny-delay"
 
-type SuccessfullyRemoved = boolean
+export type SuccessfullyRemoved = boolean
 
 
 export function ignoreUnsubscriptionError() {
   console.warn("animationFrameDelta.ignoreUnsubscriptionError is deprecated.")
 }
+
+
 
 
 export class CancelAbleSubscriptionPromise extends CancelAblePromise {
@@ -55,5 +58,3 @@ export class CancelAbleElapsingSubscriptionPromise extends CancelAblePromise {
 export class CancelAbleNextFramePromise extends CancelAblePromise {
 
 }
-
-export { now } from "tiny-delay"
