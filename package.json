@@ -1,6 +1,6 @@
 {
   "name": "animation-frame-delta",
-  "version": "2.8.5",
+  "version": "2.8.6",
   "description": "Performant animation loop with central delta calculation.",
   "main": "./app/dist/esm/animationFrameDelta.js",
   "types": "./app/dist/esm/animationFrameDelta.d.ts",
