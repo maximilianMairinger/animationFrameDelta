@@ -248,7 +248,7 @@ const loop = () => {
 
   requestAnimationFrame(loop)
 }
-/*#__PURE__*/requestAnimationFrame(loop)
+requestAnimationFrame(loop)
 
 
 
